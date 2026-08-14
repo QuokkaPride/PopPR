@@ -34,6 +34,15 @@ body {
 #app { width: 100%; max-width: 760px; }
 .screen[hidden] { display: none; }
 
+#logo {
+  display: block;
+  width: 96px;
+  height: 96px;
+  margin-bottom: 14px;
+  border-radius: 12px;
+  /* Pixel art: let the browser keep the hard edges instead of smoothing them. */
+  image-rendering: pixelated;
+}
 h1 { font-size: 34px; margin: 0 0 4px; color: var(--magenta); letter-spacing: -0.5px; }
 h2 { font-size: 19px; margin: 0 0 4px; }
 h3 { font-size: 15px; margin: 28px 0 12px; }
