@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PopPR</title>
+<meta name="description" content="Pop quiz for the pull request you just shipped.">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<main id="app">
+  <section id="landing" class="screen">
+    <h1>PopPR</h1>
+    <p class="tagline">Pop quiz for the pull request you just shipped.</p>
+    <form id="load-form">
+      <input
+        id="pr-url"
+        type="text"
+        spellcheck="false"
+        autocomplete="off"
+        placeholder="https://github.com/owner/repo/pull/123">
+      <button type="submit">Play</button>
+    </form>
+    <p class="hint">
+      Public repositories. Nothing is uploaded and no account is needed.
+      For private repositories, run it in your terminal:
+      <code>npx @quokkapride/poppr</code>
+    </p>
+    <p id="landing-error" class="error" hidden></p>
+  </section>
+
+  <section id="loading" class="screen" hidden>
+    <p class="muted"><span class="spin"></span> <span id="loading-text">Reading the diff</span></p>
+  </section>
+
+  <section id="brief" class="screen" hidden>
+    <h2 id="brief-label"></h2>
+    <p class="muted" id="brief-detail"></p>
+    <p class="muted">Hard questions are worth 3.5x. Speed and streaks multiply.</p>
+    <button id="start">Start</button>
+    <p class="hint">Answer with A, B, C, D or click.</p>
+  </section>
+
+  <section id="game" class="screen" hidden>
+    <header class="bar">
+      <span class="brand">PopPR</span>
+      <div class="track"><div id="track-fill"></div></div>
+      <span id="clock" class="clock">3:00</span>
+      <span id="points" class="points">0</span>
+      <span id="combo" class="combo" hidden></span>
+    </header>
+    <p class="meta">
+      <span id="q-number"></span>
+      <span id="q-difficulty"></span>
+      <span id="q-concept"></span>
+      <span id="q-value" class="value"></span>
+    </p>
+    <p id="prompt" class="prompt"></p>
+    <ul id="options"></ul>
+  </section>
+
+  <section id="flash" class="screen flash" hidden>
+    <div id="flash-mark"></div>
+    <div id="flash-sub" class="muted"></div>
+  </section>
+
+  <section id="review" class="screen" hidden>
+    <header class="summary">
+      <span class="brand">PopPR</span>
+      <strong id="final-score"></strong>
+      <span id="final-points" class="points"></span>
+      <span id="final-time" class="muted"></span>
+    </header>
+    <p id="verdict" class="verdict"></p>
+    <div id="misses"></div>
+    <div class="card">
+      <p class="muted">Share</p>
+      <pre id="scorecard"></pre>
+      <button id="copy">Copy scorecard</button>
+      <a id="pr-link" class="linkish" target="_blank" rel="noopener">Open the PR</a>
+    </div>
+    <div id="retry-offer" hidden>
+      <button id="retry">Retry the ones you missed</button>
+      <p class="hint">No clock, no points. Answering again is what makes it stick.</p>
+    </div>
+    <p class="hint">Missed concepts come back on a future PR.</p>
+  </section>
+
+  <section id="second" class="screen" hidden>
+    <header class="bar">
+      <span class="brand">PopPR</span>
+      <span class="muted" id="second-progress"></span>
+    </header>
+    <p class="meta"><span id="second-concept"></span></p>
+    <p id="second-prompt" class="prompt"></p>
+    <ul id="second-options"></ul>
+    <div id="second-reveal" hidden>
+      <p id="second-mark"></p>
+      <p id="second-why" class="muted"></p>
+      <p id="second-answer"></p>
+      <p id="second-explain" class="muted"></p>
+      <button id="second-next">Continue</button>
+    </div>
+  </section>
+</main>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

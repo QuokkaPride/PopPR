@@ -53,7 +53,7 @@ export async function detectProvider(preferred?: string): Promise<ProviderChoice
 
   throw new Error(
     [
-      "No AI backend found. poppr runs on compute you already have — pick one:",
+      "No AI backend found. PopPR runs on compute you already have. Pick one:",
       "",
       "  1. Install Claude Code       → npm i -g @anthropic-ai/claude-code   (recommended)",
       "  2. Install the Cursor agent  → cursor-agent on your PATH",

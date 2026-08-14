@@ -1,14 +1,18 @@
 {
   "name": "@quokkapride/poppr",
-  "version": "0.1.0",
-  "description": "Pop quiz for your pull request. Don't merge what you can't explain.",
+  "version": "0.1.1",
+  "description": "Pop quiz for the pull request you just shipped. Multiple choice on your own diff, no API key needed.",
   "keywords": [
     "pull-request",
     "code-review",
     "quiz",
     "learning",
+    "spaced-repetition",
+    "developer-tools",
+    "cli",
     "ai",
     "claude",
+    "github",
     "git",
     "pr"
   ],
@@ -40,7 +44,8 @@
     "audit:bank": "node scripts/audit-bank.mjs",
     "test": "npm run build && npm run audit:bank",
     "prepublishOnly": "npm run build && npm run audit:bank",
-    "demo": "node demo/frames.mjs > /tmp/poppr-frames.json && python3 demo/render.py /tmp/poppr-frames.json demo/poppr.gif"
+    "demo": "node demo/frames.mjs > /tmp/poppr-frames.json && python3 demo/render.py /tmp/poppr-frames.json demo/poppr.gif",
+    "build:web": "npm run build && node scripts/build-web.mjs"
   },
   "dependencies": {
     "commander": "^12.1.0",

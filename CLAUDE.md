@@ -1,7 +1,19 @@
-# PopPR — working notes for Claude Code
+# PopPR: working notes for Claude Code
 
-Pop quiz for your pull request. Runs **after** you ship, not before — it is not a
+Pop quiz for your pull request. Runs **after** you ship, not before. It is not a
 gate, and any change that makes it feel like one is wrong.
+
+**Read `HANDOFF.md` before making product decisions.** It records why the design
+is the way it is, which choices were already argued through and reversed, what
+state the project is in, and what to build next. This file covers day-to-day
+mechanics; that one covers the reasoning.
+
+## Status
+
+- Live on npm as `@quokkapride/poppr` v0.1.0 (published 14 Aug 2026)
+- Repo: https://github.com/QuokkaPride/PopPR
+- No users yet, no launch post yet
+- Next up: VS Code / Cursor extension. See the roadmap in `HANDOFF.md`.
 
 ## Commands
 
@@ -19,7 +31,7 @@ real unit tests around `diff.ts` and `adaptive.ts` is a welcome PR.
 ## Architecture
 
 ```
-src/core/          the library — no terminal code, no process.exit, no chalk
+src/core/          the library: no terminal code, no process.exit, no chalk
   types.ts         Question, Answered, RunResult, PrContext, Provider
   diff.ts          git / gh -> PrContext. Filters lockfiles and generated code.
   concepts.ts      RULES: regex -> concept slug. Quick mode's whole brain.
@@ -46,7 +58,7 @@ directly, so anything that writes to stdout or reads `process.argv` belongs in
 |---|---|---|---|
 | quick (default) | regex over added lines | curated bank | ~50ms |
 | `--smart` | one AI call picks concepts | curated bank | ~12s |
-| `--deep` | — | AI writes them per-PR | ~3min |
+| `--deep` | n/a | AI writes them per-PR | ~3min |
 
 Quick mode is the default **because a tool you have to configure before the
 first play is a tool nobody plays.** It needs no key, no network, no Claude Code.
@@ -59,7 +71,7 @@ correct answer longer and more specific than the distractors, and readers learn
 to pick the wordiest option without reading any code.
 
 This is not hypothetical. The first hand-written version of this bank had the
-correct answer as the longest option in **81%** of questions. It is now 2%,
+correct answer as the longest option in **81%** of questions. It is now 3%,
 and `npm run audit:bank` fails the build above 35%.
 
 When adding questions: **write the three distractors first**, at full
@@ -74,8 +86,16 @@ specificity, then write the correct answer to match their length.
 3. `npm test`.
 
 Every wrong option needs to be a real misconception someone holds, and
-`whyTempting` should name it — that field is what turns a wrong answer into a
+`whyTempting` should name it. That field is what turns a wrong answer into a
 lesson on the review screen.
+
+## Prose style
+
+No em dashes anywhere, including question text, option text and CLI output. Use
+a colon for the "short answer, then gloss" pattern that fills the bank, and a
+full stop or comma in running prose. The `stop-slop` skill covers the rest: no
+throat-clearing openers, no adverbs, no passive voice, no binary "not X, it's Y"
+contrasts.
 
 ## Known rough edges
 
@@ -84,8 +104,8 @@ lesson on the review screen.
   work before it is the mode anyone reaches for daily.
 - The bank covers JS/TS, React, Python, Go and SQL. Rust and Java PRs come up
   empty in quick mode.
-- `concepts.ts` regexes are deliberately loose and do produce false positives —
-  that is what `--smart` exists to fix, not something to solve with more regex.
+- `concepts.ts` regexes are loose by design and do produce false positives.
+  That is what `--smart` exists to fix, not something to solve with more regex.
 
 ## Conventions
 

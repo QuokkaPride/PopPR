@@ -37,7 +37,7 @@ export const REACT_ENTRIES: BankEntry[] = [
     prompt:
       "An effect calls socket.on('msg', handler) with deps [roomId] and returns nothing. After hopping between rooms a few times, users see each message several times. What is going on?",
     options: [
-      { text: "React only runs cleanup at unmount, so returning a cleanup function would not have helped here", whyTempting: "Cleanup runs before every re-run of the effect, not just on unmount — that is exactly what makes dep-driven subscriptions safe." },
+      { text: "React only runs cleanup at unmount, so returning a cleanup function would not have helped here", whyTempting: "Cleanup runs before every re-run of the effect, not just on unmount: that is exactly what makes dep-driven subscriptions safe." },
       { text: "roomId is listed in the deps, so React swaps the subscription for you and the duplicates come from the server", whyTempting: "Deps tell React when to re-run your code; React has no knowledge of the subscription your code created." },
       { text: "StrictMode double-invokes effects, and that is the whole story behind the duplicate handlers", whyTempting: "The dev-only double invoke surfaces missing cleanup, but it does not multiply handlers once per room change in production." },
       { text: "Every roomId change runs the effect again and registers another handler, and none are removed" },
@@ -114,7 +114,7 @@ export const REACT_ENTRIES: BankEntry[] = [
     options: [
       { text: "useMemo runs after paint like an effect, so the socket opens a frame late and drops early frames", whyTempting: "useMemo runs during render, not after commit; the timing story belongs to useEffect." },
       { text: "React may discard the cached value and rebuild it, and there is no hook to close the old socket" },
-      { text: "Side effects inside a useMemo factory are detected by React, which throws in development builds", whyTempting: "It is a rule of thumb, not an enforced check — React has no way to detect an arbitrary side effect." },
+      { text: "Side effects inside a useMemo factory are detected by React, which throws in development builds", whyTempting: "It is a rule of thumb, not an enforced check: React has no way to detect an arbitrary side effect." },
       { text: "Deps are compared with Object.is, so changing url to a different string would not rebuild the socket", whyTempting: "Object.is compares strings by value, so a different url genuinely does invalidate the memo." },
     ],
     correct: 1,
@@ -170,7 +170,7 @@ export const REACT_ENTRIES: BankEntry[] = [
     concept: "stale-closure",
     difficulty: "hard",
     prompt:
-      "const onPick = async (id) => { await save(id); if (id === selectedId) refresh(); } — selectedId is state and the handler is recreated on every render. Why can the comparison still use an outdated selectedId?",
+      "const onPick = async (id) => { await save(id); if (id === selectedId) refresh(); }: selectedId is state and the handler is recreated on every render. Why can the comparison still use an outdated selectedId?",
     options: [
       { text: "The handler is rebuilt each render, so after the await it re-reads the current selectedId and the bug lies elsewhere", whyTempting: "A fresh function per render only helps up to the moment it starts; resuming after an await does not re-capture anything." },
       { text: "React re-invokes event handlers after each state change, so the pre-await and post-await runs disagree", whyTempting: "Handlers run once per event; React never replays them because state changed." },
@@ -189,7 +189,7 @@ export const REACT_ENTRIES: BankEntry[] = [
     options: [
       { text: "The typed text now sits in the row above, because React reused the DOM nodes by position" },
       { text: "Every input clears, because removing an item invalidates all of the keys that follow it", whyTempting: "Index keys shift rather than invalidate, so React reuses nodes instead of tearing them down." },
-      { text: "Nothing visible changes; index keys are a performance concern rather than a correctness one", whyTempting: "The common belief that keys only speed up diffing — they actually decide which state belongs to which item." },
+      { text: "Nothing visible changes; index keys are a performance concern rather than a correctness one", whyTempting: "The common belief that keys only speed up diffing: they actually decide which state belongs to which item." },
       { text: "React logs a warning and falls back to comparing element identity, so the inputs stay with their rows", whyTempting: "There is no such fallback: React trusts the keys you supply and warns only when they are missing." },
     ],
     correct: 0,
@@ -204,7 +204,7 @@ export const REACT_ENTRIES: BankEntry[] = [
     options: [
       { text: "JSX strips key only for elements produced inside .map(), so passing it directly would work", whyTempting: "The stripping is done by the element factory itself, so it happens no matter where the element is created." },
       { text: "React consumes key for reconciliation and never forwards it in props; pass it again as id" },
-      { text: "Destructuring shadows React's internal field, so the value has to be read as props['key'] instead", whyTempting: "Destructuring cannot shadow anything — the field is simply absent from the props object." },
+      { text: "Destructuring shadows React's internal field, so the value has to be read as props['key'] instead", whyTempting: "Destructuring cannot shadow anything: the field is simply absent from the props object." },
       { text: "key is only populated during the commit phase, so it reads as undefined in the render body", whyTempting: "Keys are consumed during reconciliation, not attached to props at any later phase." },
     ],
     correct: 1,
@@ -217,7 +217,7 @@ export const REACT_ENTRIES: BankEntry[] = [
     prompt:
       "In a client-rendered app, someone silences a key warning with key={Math.random()} and the console goes quiet. What breaks?",
     options: [
-      { text: "Nothing breaks: uniqueness among siblings is the only requirement React documents for keys", whyTempting: "Uniqueness is necessary but not sufficient — a key must also be stable across renders for the same item." },
+      { text: "Nothing breaks: uniqueness among siblings is the only requirement React documents for keys", whyTempting: "Uniqueness is necessary but not sufficient: a key must also be stable across renders for the same item." },
       { text: "Duplicate random values eventually collide, and React quietly drops one of the two rows", whyTempting: "Collisions are vanishingly rare and would warn rather than drop; the real damage happens on every render." },
       { text: "Hydration mismatches appear because server and client generate different keys on the first paint", whyTempting: "A genuine problem in SSR apps, but this app renders on the client, so hydration is not involved." },
       { text: "Keys change every render, so React remounts each row and loses focus, scroll and child state" },
@@ -239,6 +239,6 @@ export const REACT_ENTRIES: BankEntry[] = [
     ],
     correct: 3,
     explanation:
-      "Changing the key changes the element's identity, so React discards the whole subtree and mounts a new one — the documented way to reset state on prop change. The cost is a full remount, including refetching in mount effects.",
+      "Changing the key changes the element's identity, so React discards the whole subtree and mounts a new one: the documented way to reset state on prop change. The cost is a full remount, including refetching in mount effects.",
   },
 ];

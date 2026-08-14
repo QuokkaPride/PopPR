@@ -16,32 +16,40 @@ import { Staircase } from "../core/adaptive.js";
 import { detectConcepts } from "../core/concepts.js";
 import { bankQuestions } from "../core/bank.js";
 import { classifyConcepts } from "../core/classify.js";
+import { formatDuration } from "../core/scorecard.js";
 import { runGame } from "./game.js";
 import { renderReview } from "./review.js";
+import { retryMissed } from "./retry.js";
 
 const program = new Command();
 
 program
   .name("poppr")
-  .description("Pop quiz for your pull request. Don't merge what you can't explain.")
+  .description("Pop quiz for the pull request you just shipped.")
   .argument("[pr]", "PR number or URL. Defaults to your most recent PR.")
   .option("--local", "quiz on the local branch diff instead of a GitHub PR")
   .option("--base <ref>", "base ref for --local (default: auto-detected)")
   .option(
     "-s, --smart",
-    "let AI pick which concepts matter in your diff, then quiz from the bank (~10s)",
+    "let AI pick which concepts matter in your diff, then quiz from the bank (~12s)",
   )
   .option(
     "-d, --deep",
-    "quiz on YOUR code specifically, written fresh for this PR (needs AI, ~60s)",
+    "quiz on YOUR code specifically, written fresh for this PR (needs AI, ~3min)",
   )
   .option("-t, --time <seconds>", "how long the run lasts", "180")
   .option("--provider <name>", "claude-code | cursor-agent | anthropic | openai | openrouter | ollama")
   .option("--stats", "show your concept mastery over time and exit")
+  .option(
+    "--detect",
+    "print the concepts this diff touches and exit, without playing",
+  )
+  .option("--json", "machine-readable output, for --detect")
   .action(main);
 
 async function main(prArg: string | undefined, opts: Record<string, any>) {
   if (opts.stats) return showStats();
+  if (opts.detect) return detectOnly(prArg, opts);
 
   const cwd = process.cwd();
   const spin = startSpinner("Finding your PR");
@@ -163,11 +171,67 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
     result.streak = currentStreak(updated);
 
     console.log(renderReview(result, updated.runs.length, conceptTrends(updated)));
+
+    // Retrieval beats re-reading, so offer the misses again before we let go of
+    // them. Opt-in, off the clock, unscored: see retry.ts.
+    await retryMissed(result.answered.filter((a) => !a.correct));
   } catch (err) {
     spin.stop();
     console.error(pc.red(`\n  ${(err as Error).message}\n`));
     process.exit(1);
   }
+}
+
+/**
+ * What would this diff be quizzed on? No game, no clock, no history written.
+ *
+ * Exists because CI has nobody at the keyboard: a timed quiz cannot be played
+ * by a runner, so the GitHub Action reports what the PR touches and leaves the
+ * playing to a human. Also useful on its own for seeing why a run asked what it
+ * asked.
+ */
+async function detectOnly(prArg: string | undefined, opts: Record<string, any>) {
+  const cwd = process.cwd();
+  const ctx = await readDiff({ cwd, pr: opts.local ? undefined : prArg, base: opts.base });
+  const detected = detectConcepts(ctx);
+  const questions = bankQuestions(detected);
+
+  if (opts.json) {
+    console.log(
+      JSON.stringify(
+        {
+          label: ctx.label,
+          files: ctx.files.length,
+          concepts: detected.map((d) => ({
+            concept: d.concept,
+            files: d.files,
+            weight: d.weight,
+          })),
+          questions: questions.length,
+        },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
+
+  if (!detected.length) {
+    console.log(pc.dim(`\n  No bank concepts matched ${ctx.label}.\n`));
+    return;
+  }
+
+  console.log("");
+  console.log(`  ${pc.bold(pc.magenta("PopPR"))}  ${pc.dim(ctx.label)}`);
+  console.log("");
+  for (const d of detected) {
+    console.log(
+      `  ${d.concept.padEnd(24)} ${pc.dim(d.files.slice(0, 2).join(", "))}`,
+    );
+  }
+  console.log("");
+  console.log(pc.dim(`  ${questions.length} questions available. Play them with \`poppr\`.`));
+  console.log("");
 }
 
 async function showStats() {
@@ -179,7 +243,7 @@ async function showStats() {
   const trends = conceptTrends(history);
   console.log("");
   console.log(
-    `  ${pc.bold(pc.magenta("POPPR"))}  ${history.runs.length} runs  ·  🔥 ${currentStreak(
+    `  ${pc.bold(pc.magenta("PopPR"))}  ${history.runs.length} runs  ·  🔥 ${currentStreak(
       history,
     )} day streak`,
   );
@@ -202,10 +266,12 @@ function countdown(label: string, seconds: number, mode: string): Promise<void> 
   return new Promise((resolve) => {
     console.log("");
     console.log(
-      `  ${pc.bold(pc.magenta("POPPR"))}  ${pc.dim(label)}  ${mode === "quick" ? pc.dim(mode) : pc.cyan(mode)}`,
+      `  ${pc.bold(pc.magenta("PopPR"))}  ${pc.dim(label)}  ${mode === "quick" ? pc.dim(mode) : pc.cyan(mode)}`,
     );
+    // Match the mm:ss the timer itself shows. "180s" here then "3:00" one line
+    // down reads like two different clocks.
     console.log(
-      `  ${pc.dim(`${seconds}s on the clock · answer as many as you can`)}`,
+      `  ${pc.dim(`${formatDuration(seconds * 1000)} on the clock · answer as many as you can`)}`,
     );
     console.log(`  ${pc.dim("hard questions are worth 3.5x. speed and streaks multiply.")}`);
     console.log("");

@@ -1,0 +1,48 @@
+name: Pages
+
+# Publishes the browser version, which is a static page with no backend: the
+# quiz engine is imported straight from the compiled core, and public repos
+# need no GitHub token, so there is nothing here to host or pay for.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never cancel a half-finished deploy of a live page.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      # Copies the pure core and bank modules into web/vendor/ and fails if a
+      # node builtin sneaks in, which in a browser is a blank page.
+      - run: npm run build:web
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

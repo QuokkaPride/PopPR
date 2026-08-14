@@ -5,7 +5,7 @@
  * Multiple choice rots in a specific, predictable way: whoever writes the
  * questions makes the correct answer longer and more specific than the
  * distractors, and readers learn to pick the wordiest option without reading
- * the code. Good intentions do not prevent this — the first hand-written
+ * the code. Good intentions do not prevent this. The first hand-written
  * version of this bank failed at 81%. So it is a gate, not a guideline.
  */
 import { bankQuestions, bankConcepts, bankSize } from "../dist/core/bank.js";
@@ -57,7 +57,7 @@ for (const concept of bankConcepts()) {
   }
 }
 
-console.log(`\n  poppr bank audit — ${bankSize()} questions, ${bankConcepts().length} concepts\n`);
+console.log(`\n  poppr bank audit · ${bankSize()} questions, ${bankConcepts().length} concepts\n`);
 console.log(`  correct-is-longest  ${(audit.longestIsCorrect * 100).toFixed(0)}%   (limit ${LIMITS.longestIsCorrect * 100}%, random baseline 25%)`);
 console.log(`  length ratio        ${audit.lengthRatio.toFixed(2)}   (limit ${LIMITS.lengthRatio})`);
 console.log(

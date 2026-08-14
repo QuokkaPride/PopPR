@@ -40,7 +40,7 @@ const diffTag = (d) => `{${d === "hard" ? "r" : d === "medium" ? "y" : "g"}:${d}
 function header(remainingMs, totalMs, points, combo) {
   const streak = combo > 0 ? `   {y:combo x${comboMultiplier(combo).toFixed(1)}}` : "";
   return (
-    `  {M:POPPR}  ${bar(remainingMs / totalMs)}  {W:${formatDuration(remainingMs)}}` +
+    `  {M:PopPR}  ${bar(remainingMs / totalMs)}  {W:${formatDuration(remainingMs)}}` +
     `     {c:${points.toLocaleString()} pts}${streak}`
   );
 }
@@ -123,8 +123,8 @@ for (const [text, reps] of spinnerSteps) {
 // 3. the brief + countdown
 const brief = [
   "",
-  "  {M:POPPR}  {d:PR #142 · acme/shop}  {d:quick}",
-  "  {d:180s on the clock · answer as many as you can}",
+  "  {M:PopPR}  {d:PR #142 · acme/shop}  {d:quick}",
+  "  {d:3:00 on the clock · answer as many as you can}",
   "  {d:hard questions are worth 3.5x. speed and streaks multiply.}",
   "",
 ];
@@ -172,8 +172,8 @@ const correct = answered.filter((a) => a.right).length;
 const review = [
   "",
   rule,
-  `  {M:POPPR}  {W:${correct}/3}   {c:${points.toLocaleString()} pts}   {d:0:25}   {y:best combo 1}`,
-  `  {d:You know what it does. You don't yet know what it costs.}`,
+  `  {M:PopPR}  {W:${correct}/3}   {c:${points.toLocaleString()} pts}   {d:0:25}   {y:best combo 1}`,
+  `  {d:You can describe the change but not its failure modes.}`,
   rule,
   "",
   "  {W:What you missed (1)}",
@@ -202,7 +202,7 @@ push(review, 4200);
 const card = [
   "",
   rule,
-  `  {M:POPPR}  {W:${correct}/3}   {c:${points.toLocaleString()} pts}   {d:0:25}`,
+  `  {M:PopPR}  {W:${correct}/3}   {c:${points.toLocaleString()} pts}   {d:0:25}`,
   rule,
   "",
   "  {W:Getting better}",
@@ -219,7 +219,49 @@ const card = [
   "",
   "  {d:These come back in a future run, on a different PR.}",
   "",
+  "  {C:r}{d: to retry the 1 you missed, any other key to finish}",
+  "",
 ];
-push(card, 4800);
+push(card, 4200);
+
+// 7. the second pass. Retrieval is what encodes, so the miss gets asked again:
+// no clock, no points, and the explanation shows immediately this time.
+const second = [
+  "",
+  "  {M:PopPR}  {d:second pass  1/1}",
+  "",
+  `  {d:${miss.q.concept}}`,
+  "",
+  ...wrap(miss.q.prompt, 66, "  "),
+  "",
+];
+for (const o of miss.q.options) {
+  second.push(`    {c:${o.key}}   ${o.text.slice(0, 58)}`);
+}
+second.push("", "  {d:no clock, no points}");
+push(second, 3200);
+
+const secondPicked = second.map((l) =>
+  l.includes(missCorrect.text.slice(0, 58))
+    ? `    {C:>}  {C:${miss.q.correct}}   {W:${missCorrect.text.slice(0, 58)}}`
+    : l,
+);
+push(secondPicked, 700);
+
+push(
+  [
+    "",
+    // {P:} is the hero/flash style. The second pass is a quiet screen, so this
+    // stays a normal-size green line.
+    "  {G:✓ right}",
+    "",
+    ...wrap(miss.q.explanation, 64, "  "),
+    "",
+    "  {M:PopPR}  {W:1/1} on the second pass",
+    "  {d:All of them. These still come back on a future PR.}",
+    "",
+  ],
+  4200,
+);
 
 process.stdout.write(JSON.stringify({ width: W, frames }, null, 0));
