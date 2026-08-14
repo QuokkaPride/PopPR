@@ -49,9 +49,4 @@ if (!data.concepts.length) {
   );
 }
 
-out.push(
-  "",
-  "<sub>Posted by PopPR. This is a note, not a check: it never blocks the merge.</sub>",
-);
-
 process.stdout.write(out.join("\n") + "\n");
