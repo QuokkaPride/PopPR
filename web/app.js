@@ -20,6 +20,12 @@ import { scoreAnswer, liveValue } from "./vendor/core/score.js";
 import { scorecard, verdictLine, formatDuration } from "./vendor/core/scorecard.js";
 
 const RUN_MS = 180_000;
+/** Input ignored for this long after a question appears, so a late keypress
+ *  from the previous one cannot answer this one. */
+const GUARD_MS = 500;
+/** A hit needs a beat; a miss needs long enough to read the right answer. */
+const HIT_MS = 900;
+const MISS_MS = 2200;
 const $ = (id) => document.getElementById(id);
 const screens = [...document.querySelectorAll(".screen")];
 
@@ -146,6 +152,7 @@ const state = {
   question: null,
   deadline: 0,
   askedAt: 0,
+  readyAt: 0,
   ticker: null,
   locked: false,
 };
@@ -191,7 +198,20 @@ function tick() {
     const value = liveValue(state.question.difficulty, Date.now() - state.askedAt, state.combo);
     $("q-value").textContent = `+${value}`;
   }
-  if (remaining <= 0) finish();
+
+  if (remaining > 0) return;
+
+  // Time is up, but taking the question away while someone is halfway through
+  // reading it is the worst moment to end on. Stop issuing new questions and
+  // let this one be finished; the flash handler ends the run afterwards.
+  if (!$("game").hidden && state.question && !state.locked) {
+    $("clock").textContent = "0:00";
+    $("clock").classList.add("expired");
+    $("q-value").textContent = "last one";
+    return;
+  }
+  if (!$("flash").hidden) return;
+  finish();
 }
 
 function next() {
@@ -201,12 +221,17 @@ function next() {
   state.question = q;
   state.askedAt = Date.now();
   state.locked = false;
+  // A key pressed while the previous answer was still on screen used to land on
+  // this question the instant it rendered, which reads as the quiz answering
+  // for you. Ignore input until the question has been up long enough to read a
+  // word of it.
+  state.readyAt = Date.now() + GUARD_MS;
 
   $("q-number").textContent = `Q${state.answered.length + 1}`;
   $("q-difficulty").textContent = q.difficulty;
   $("q-difficulty").className = `diff ${q.difficulty}`;
   $("q-concept").textContent = q.concept;
-  $("prompt").textContent = q.prompt;
+  rich($("prompt"), q.prompt);
 
   const list = $("options");
   list.replaceChildren();
@@ -219,7 +244,7 @@ function next() {
     kbd.className = "key";
     kbd.textContent = o.key;
     const text = document.createElement("span");
-    text.textContent = o.text;
+    rich(text, o.text);
     btn.append(kbd, text);
     btn.addEventListener("click", () => answer(o.key));
     li.append(btn);
@@ -230,6 +255,7 @@ function next() {
 
 function answer(key) {
   if (state.locked || !state.question) return;
+  if (Date.now() < state.readyAt) return;
   state.locked = true;
 
   const q = state.question;
@@ -255,17 +281,24 @@ function answer(key) {
   $("combo").hidden = state.combo < 1;
   $("combo").textContent = `x${(1 + 0.1 * Math.min(state.combo, 10)).toFixed(1)}`;
 
-  // 400ms of pure signal and nothing to read, same as the terminal. The
-  // explanation waits for the review screen so the run keeps its momentum.
   $("flash-mark").textContent = correct ? "✓" : "✗";
   $("flash-mark").className = correct ? "hit" : "miss";
-  $("flash-sub").textContent = correct ? `+${event.points}` : `answer was ${q.correct}`;
+  if (correct) {
+    $("flash-sub").textContent = `+${event.points}`;
+  } else {
+    // Naming the right option beats printing its letter. "answer was C" is
+    // unreadable once the options are off screen.
+    const right = q.options.find((o) => o.key === q.correct);
+    rich($("flash-sub"), right ? right.text : `answer was ${q.correct}`);
+  }
   show("flash");
 
   setTimeout(() => {
+    // The clock running out should not yank a question away mid-thought, so
+    // the run ends here, between questions, rather than under one.
     if (Date.now() >= state.deadline) return finish();
     next();
-  }, 450);
+  }, correct ? HIT_MS : MISS_MS);
 }
 
 function buildResult() {
@@ -301,7 +334,7 @@ function finish() {
   $("final-score").textContent = `${result.correctCount}/${result.answered.length}`;
   $("final-points").textContent = `${result.points.toLocaleString()} pts`;
   $("final-time").textContent = formatDuration(result.totalMs);
-  $("verdict").textContent = verdictLine(result);
+  rich($("verdict"), verdictLine(result));
   $("scorecard").textContent = scorecard(result, history.runs.length);
   $("pr-link").href = state.ctx.url ?? "#";
 
@@ -348,8 +381,31 @@ function renderMisses(misses) {
 function el(tag, cls, text) {
   const n = document.createElement(tag);
   n.className = cls;
-  n.textContent = text;
+  rich(n, text);
   return n;
+}
+
+/**
+ * Bank text uses `backticks` for code, which the terminal renders as-is because
+ * a terminal has no other way to mark a span. On a page they showed up as
+ * literal backtick characters in the middle of a sentence, which is a real
+ * readability cost on prompts that are mostly identifiers. Split on the ticks
+ * and emit <code> instead. Text nodes throughout, so nothing here can inject
+ * markup from a question.
+ */
+function rich(node, text) {
+  node.replaceChildren();
+  const parts = String(text ?? "").split("`");
+  parts.forEach((part, i) => {
+    if (!part) return;
+    if (i % 2 === 1) {
+      const code = document.createElement("code");
+      code.textContent = part;
+      node.append(code);
+    } else {
+      node.append(document.createTextNode(part));
+    }
+  });
 }
 
 // ── second pass ────────────────────────────────────────────────────────────
@@ -378,7 +434,7 @@ function askSecond() {
   const q = second.queue[second.index];
   $("second-progress").textContent = `second pass  ${second.index + 1}/${second.queue.length}`;
   $("second-concept").textContent = q.concept;
-  $("second-prompt").textContent = q.prompt;
+  rich($("second-prompt"), q.prompt);
   $("second-reveal").hidden = true;
 
   const list = $("second-options");
@@ -392,7 +448,7 @@ function askSecond() {
     kbd.className = "key";
     kbd.textContent = o.key;
     const text = document.createElement("span");
-    text.textContent = o.text;
+    rich(text, o.text);
     btn.append(kbd, text);
     btn.addEventListener("click", () => revealSecond(o.key));
     li.append(btn);
@@ -411,9 +467,9 @@ function revealSecond(key) {
 
   $("second-mark").textContent = ok ? "✓ right" : "✗ still wrong";
   $("second-mark").className = ok ? "right" : "wrong";
-  $("second-why").textContent = !ok && picked?.whyTempting ? picked.whyTempting : "";
-  $("second-answer").textContent = ok ? "" : `answer  ${right?.text ?? ""}`;
-  $("second-explain").textContent = q.explanation ?? "";
+  rich($("second-why"), !ok && picked?.whyTempting ? picked.whyTempting : "");
+  rich($("second-answer"), ok ? "" : `answer  ${right?.text ?? ""}`);
+  rich($("second-explain"), q.explanation ?? "");
   $("second-reveal").hidden = false;
   $("second-options").replaceChildren();
 }
@@ -421,6 +477,7 @@ function revealSecond(key) {
 // ── wiring ─────────────────────────────────────────────────────────────────
 
 document.addEventListener("keydown", (e) => {
+  if (e.repeat) return; // holding a key must not answer question after question
   const key = e.key.toUpperCase();
   if (!["A", "B", "C", "D", "E", "F"].includes(key)) return;
   if (!$("game").hidden) answer(key);
