@@ -1,0 +1,65 @@
+name: Publish
+
+# Publishes to npm from CI with no token and no one-time password.
+#
+# npm trusted publishing swaps a stored secret for a short-lived OIDC identity:
+# npm verifies that this specific workflow, in this specific repository, is what
+# asked to publish. There is nothing to leak, nothing to rotate, and nothing to
+# approve in a browser while a CLI spins.
+#
+# It also matters for where npm is heading. Tokens that bypass 2FA are being
+# restricted through 2026 and direct publishing follows in 2027, so a workflow
+# like this becomes the normal path rather than a nicety.
+#
+# ONE-TIME SETUP, on npmjs.com, once per package:
+#   npmjs.com/package/@quokkapride/poppr/access
+#   -> Trusted Publisher -> GitHub Actions
+#      Organization or user: QuokkaPride
+#      Repository:           PopPR
+#      Workflow filename:    publish.yml
+#
+# Then publishing is: bump the version, commit, and cut a GitHub release.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # the OIDC token npm checks; without it, no trusted publish
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      # setup-node ships npm 10.x; trusted publishing needs 11.5.1 or newer.
+      - run: npm install -g npm@latest
+      - run: npm --version
+
+      - run: npm ci
+      - run: npm test
+
+      # A release tagged v0.1.3 that publishes 0.1.2 is the kind of mismatch
+      # nobody notices until someone installs the wrong thing.
+      - name: Check the tag matches package.json
+        if: github.event_name == 'release'
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$pkg" ]; then
+            echo "Release tag $tag does not match package.json $pkg" >&2
+            exit 1
+          fi
+          echo "tag and package.json agree on $pkg"
+
+      # No NODE_AUTH_TOKEN. The OIDC identity above is the credential, and npm
+      # attaches a provenance attestation because it can prove the origin.
+      - run: npm publish

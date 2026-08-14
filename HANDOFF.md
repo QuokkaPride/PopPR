@@ -218,8 +218,23 @@ whole pitch.
   else means taken. The bare name `poppr` is an unrelated React modal library.
 - **Scoped packages default to private.** `publishConfig.access: "public"` is in
   package.json so plain `npm publish` works without `--access public`.
-- **npm requires 2FA to publish.** Publish with `npm publish --otp=123456`.
-  Granular tokens with "bypass 2FA" have open CLI bugs; don't rely on them.
+- **Publish from CI, not your laptop.** `.github/workflows/publish.yml` uses npm
+  trusted publishing: no token, no one-time password, and a provenance
+  attestation for free. Cut a GitHub release and it goes. This needs a one-time
+  setup at npmjs.com under the package's Access settings, pointing a Trusted
+  Publisher at `QuokkaPride/PopPR` and `publish.yml`.
+- **Publishing by hand is worse than it looks.** `npm publish` from a terminal
+  wants 2FA. Without a TTY it fails immediately with EOTP, and the auth URL is
+  scrubbed from tooling output as a credential, so you cannot even read it.
+  Running it under `script -q /dev/null` gives npm a pty and it prints a link
+  you open in a browser, but the link expires while you are looking for it and
+  the run dies with a 404 on the done endpoint. Two of three attempts died that
+  way. Granular tokens with "bypass 2FA" have open CLI bugs, so they are not the
+  escape hatch either.
+- **npm rewrites `./` off bin paths** and warns that the entry "was invalid and
+  removed", which sounds like it dropped your CLI. It did not: it removes the
+  unnormalised form and re-adds the corrected one. Store `dist/cli/index.js`
+  rather than `./dist/cli/index.js` and the warning goes away.
 - **The demo GIF is generated from the real bank and real scoring functions**
   (`npm run demo`). It cannot drift into misrepresenting the product. Keep it
   that way.
