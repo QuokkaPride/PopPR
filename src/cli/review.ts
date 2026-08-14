@@ -34,7 +34,7 @@ export function renderReview(result: RunResult, runNumber: number, trends: Conce
   out.push("");
   out.push(rule());
   out.push(
-    `  ${pc.bold(pc.magenta("POPPR"))}  ${pc.bold(`${result.correctCount}/${total}`)}` +
+    `  ${pc.bold(pc.magenta("PopPR"))}  ${pc.bold(`${result.correctCount}/${total}`)}` +
       `   ${pc.cyan(`⚡ ${result.points.toLocaleString()} pts`)}` +
       `   ${pc.dim(formatDuration(result.totalMs))}` +
       (result.bestCombo > 2 ? `   ${pc.yellow(`🔥 best combo ${result.bestCombo}`)}` : ""),

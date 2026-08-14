@@ -637,7 +637,7 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
       },
       {
         text: "It is protected anyway, because the framework runs middleware globally and the matcher only orders it",
-        whyTempting: "This confuses middleware ordering with middleware scoping — the matcher decides what runs.",
+        whyTempting: "This confuses middleware ordering with middleware scoping: the matcher decides what runs.",
       },
       {
         text: "It is reachable but harmless, because internal paths are not routable through the public ingress",

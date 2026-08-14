@@ -23,7 +23,7 @@ export interface PrRef {
 /**
  * Find the PR to quiz on, with no arguments from the user.
  *
- * The design assumption is that poppr runs in the minute after you ship, so the
+ * The design assumption is that PopPR runs in the minute after you ship, so the
  * right answer is almost always "the thing I just pushed". We look for the PR on
  * the current branch first, and only fall back to your most recent PR anywhere
  * in the repo if this branch has none.

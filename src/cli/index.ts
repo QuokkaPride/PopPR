@@ -179,7 +179,7 @@ async function showStats() {
   const trends = conceptTrends(history);
   console.log("");
   console.log(
-    `  ${pc.bold(pc.magenta("POPPR"))}  ${history.runs.length} runs  ·  🔥 ${currentStreak(
+    `  ${pc.bold(pc.magenta("PopPR"))}  ${history.runs.length} runs  ·  🔥 ${currentStreak(
       history,
     )} day streak`,
   );
@@ -202,7 +202,7 @@ function countdown(label: string, seconds: number, mode: string): Promise<void> 
   return new Promise((resolve) => {
     console.log("");
     console.log(
-      `  ${pc.bold(pc.magenta("POPPR"))}  ${pc.dim(label)}  ${mode === "quick" ? pc.dim(mode) : pc.cyan(mode)}`,
+      `  ${pc.bold(pc.magenta("PopPR"))}  ${pc.dim(label)}  ${mode === "quick" ? pc.dim(mode) : pc.cyan(mode)}`,
     );
     console.log(
       `  ${pc.dim(`${seconds}s on the clock · answer as many as you can`)}`,

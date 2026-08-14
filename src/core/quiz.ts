@@ -68,7 +68,7 @@ function buildPrompt(ctx: PrContext, opts: GenerateOptions): string {
     : "";
 
   const review = opts.reviewConcepts?.length
-    ? `\nSPACED REPETITION: this developer has previously struggled with these\nconcepts: ${opts.reviewConcepts.join(", ")}.\nIf — and only if — this diff genuinely touches any of them, include one extra\nquestion on it. Do NOT force a question about a concept the diff does not use.\n`
+    ? `\nSPACED REPETITION: this developer has previously struggled with these\nconcepts: ${opts.reviewConcepts.join(", ")}.\nIf, and only if, this diff touches any of them, include one extra\nquestion on it. Do NOT force a question about a concept the diff does not use.\n`
     : "";
 
   return `You are writing a short, timed, multiple-choice quiz that a developer takes on

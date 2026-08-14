@@ -8,7 +8,7 @@ export const DATA_ENTRIES: BankEntry[] = [
     prompt:
       "`const copy = [...rows]` and then `copy[0].status = 'done'`. What is true of `rows` afterwards?",
     options: [
-      { text: "rows[0].status is 'done' too — both arrays hold the same element objects" },
+      { text: "rows[0].status is 'done' too: both arrays hold the same element objects" },
       {
         text: "rows is untouched; spreading an array clones every element it copies into it",
         whyTempting:
@@ -22,7 +22,7 @@ export const DATA_ENTRIES: BankEntry[] = [
       {
         text: "rows[0] is untouched but rows.length changed, since spread shares the backing store",
         whyTempting:
-          "Sharing the backing store is the one thing spread does not do — the array itself is genuinely new.",
+          "Sharing the backing store is the one thing spread does not do: the array itself is genuinely new.",
       },
     ],
     correct: 0,
@@ -43,7 +43,7 @@ export const DATA_ENTRIES: BankEntry[] = [
       {
         text: "Object spread skips properties holding objects, so address was never captured",
         whyTempting:
-          "Spread copies every own enumerable property, object-valued ones included — it just copies the reference.",
+          "Spread copies every own enumerable property, object-valued ones included: it just copies the reference.",
       },
       { text: "Every snapshot shares one address object, so an edit rewrites the whole history" },
       {
@@ -70,7 +70,7 @@ export const DATA_ENTRIES: BankEntry[] = [
       {
         text: "Return Object.assign({}, config), which copies own properties recursively",
         whyTempting:
-          "Object.assign behaves exactly like spread — one level deep — so it changes nothing here.",
+          "Object.assign behaves exactly like spread, one level deep, so it changes nothing here.",
       },
       {
         text: "Memoise the getter so callers share one copy instead of allocating a new one",
@@ -94,7 +94,7 @@ export const DATA_ENTRIES: BankEntry[] = [
       {
         text: "The reversed order again, since reverse builds a fresh array on each call",
         whyTempting:
-          "reverse does return an array, and returning something feels like producing something new — but it is the same array.",
+          "reverse does return an array, and returning something feels like producing something new: but it is the same array.",
       },
       { text: "The original order, because each call flips the shared module array" },
       {
@@ -118,18 +118,18 @@ export const DATA_ENTRIES: BankEntry[] = [
     prompt: "`const top = scores.sort().slice(0, 3)` where scores is `[9, 80, 100, 25]`. What is `top`?",
     options: [
       {
-        text: "[9, 25, 80] — sort defaults to ascending numeric order for numeric arrays",
+        text: "[9, 25, 80]: sort defaults to ascending numeric order for numeric arrays",
         whyTempting:
           "Ascending numeric is what a comparator would give, and the default looks numeric on single-digit fixtures.",
       },
-      { text: "[100, 25, 80] — the default sort compares stringified values" },
+      { text: "[100, 25, 80]: the default sort compares stringified values" },
       {
-        text: "[100, 80, 25] — sort defaults to descending, so slice takes the largest three",
+        text: "[100, 80, 25]: sort defaults to descending, so slice takes the largest three",
         whyTempting:
           "'Top 3' idiom trains people to expect descending, but no sort anywhere defaults to descending.",
       },
       {
-        text: "[9, 80, 100] — .sort() returns a copy, so slice still sees the original order",
+        text: "[9, 80, 100]: .sort() returns a copy, so slice still sees the original order",
         whyTempting:
           "sort returns the same array it mutated, so slice always sees the sorted order, never the input order.",
       },
@@ -158,7 +158,7 @@ export const DATA_ENTRIES: BankEntry[] = [
       {
         text: "The returned boolean coerces to NaN, which the engine then treats as 'equal'",
         whyTempting:
-          "Booleans coerce to 1 and 0, not NaN — and the 0 for false is exactly what makes this read as 'equal'.",
+          "Booleans coerce to 1 and 0, not NaN: and the 0 for false is exactly what makes this read as 'equal'.",
       },
     ],
     correct: 2,
@@ -174,13 +174,13 @@ export const DATA_ENTRIES: BankEntry[] = [
       "A lint rule bans `==` everywhere. A reviewer defends one use: `if (opts.timeout == null)`. Is that defensible?",
     options: [
       {
-        text: "No — it also matches 0 and the empty string, which are valid timeouts",
+        text: "No: it also matches 0 and the empty string, which are valid timeouts",
         whyTempting:
           "Those values are falsy, and `== null` gets mentally merged with a plain `if (!opts.timeout)` check.",
       },
-      { text: "Yes — `== null` matches null and undefined, and nothing else" },
+      { text: "Yes: `== null` matches null and undefined, and nothing else" },
       {
-        text: "No — `== null` is true for any object whose valueOf returns null",
+        text: "No: `== null` is true for any object whose valueOf returns null",
         whyTempting:
           "valueOf is consulted when comparing objects to primitives, but null and undefined skip that path entirely.",
       },
@@ -269,7 +269,7 @@ export const DATA_ENTRIES: BankEntry[] = [
       {
         text: "Raise the float precision in the runtime config so doubles carry more digits",
         whyTempting:
-          "There is no such setting — JavaScript numbers are always IEEE-754 doubles, with no configurable precision.",
+          "There is no such setting: JavaScript numbers are always IEEE-754 doubles, with no configurable precision.",
       },
     ],
     correct: 1,
@@ -280,7 +280,7 @@ export const DATA_ENTRIES: BankEntry[] = [
     concept: "number-precision",
     difficulty: "medium",
     prompt:
-      "An upstream returns `{ \"id\": 9007199254740993 }`. Your Node service parses it, stores it and passes it on — and support reports two accounts merging. What happened?",
+      "An upstream returns `{ \"id\": 9007199254740993 }`. Your Node service parses it, stores it and passes it on: and support reports two accounts merging. What happened?",
     options: [
       { text: "JSON.parse produced the nearest double, silently changing the id" },
       {
@@ -312,7 +312,7 @@ export const DATA_ENTRIES: BankEntry[] = [
       {
         text: "`| 0` truncates toward zero, so negative offsets round the wrong way",
         whyTempting:
-          "True, and a real bug for negatives — but it would have failed from day one rather than at a 2.1 billion threshold.",
+          "True, and a real bug for negatives: but it would have failed from day one rather than at a 2.1 billion threshold.",
       },
       {
         text: "Division past Number.MAX_SAFE_INTEGER starts returning a non-integer double",
@@ -507,7 +507,7 @@ export const DATA_ENTRIES: BankEntry[] = [
       {
         text: "Adding two amounts, which overflows once totals pass 2^31 cents",
         whyTempting:
-          "JavaScript numbers are doubles and stay exact to 2^53 — roughly $90 trillion — so ordinary sums are safe.",
+          "JavaScript numbers are doubles and stay exact to 2^53, roughly $90 trillion, so ordinary sums are safe.",
       },
       {
         text: "Comparing two amounts, since integer equality still goes through float rules",
@@ -534,7 +534,7 @@ export const DATA_ENTRIES: BankEntry[] = [
       {
         text: "toFixed uses banker's rounding, so exact halves go to the even digit",
         whyTempting:
-          "Banker's rounding would also yield 1.00 here, so the answer looks confirmed — but toFixed rounds half away from zero.",
+          "Banker's rounding would also yield 1.00 here, so the answer looks confirmed: but toFixed rounds half away from zero.",
       },
       {
         text: "toFixed truncates rather than rounds, dropping every digit past the requested precision",

@@ -11,7 +11,7 @@ import { SYSTEMS_ENTRIES } from "./systems.js";
  * Adding a question here benefits every user of poppr, which makes this the
  * natural place for contributions: one good PR is one more thing the whole
  * community gets quizzed on. Keep the distractor discipline (see CONTRIBUTING)
- * — `npm run audit:bank` fails the build if the correct answer is the longest
+ *: `npm run audit:bank` fails the build if the correct answer is the longest
  * option too often, which is the main way multiple choice quietly rots.
  */
 export const ALL_ENTRIES: BankEntry[] = [

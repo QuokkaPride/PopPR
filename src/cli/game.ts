@@ -183,7 +183,7 @@ function askOne(
 
       const header = [
         "",
-        `  ${pc.bold(pc.magenta("POPPR"))}  ${bar(remaining / ctx.totalMs)}  ${pc.bold(
+        `  ${pc.bold(pc.magenta("PopPR"))}  ${bar(remaining / ctx.totalMs)}  ${pc.bold(
           formatDuration(remaining),
         )}` +
           `     ${pc.cyan("⚡ " + ctx.points.toLocaleString())}` +

@@ -431,7 +431,7 @@ export const PYGO_ENTRIES: BankEntry[] = [
       {
         text: "The deferred closes run in loop order at return, so the earliest files close last",
         whyTempting:
-          "Deferred calls run last-in-first-out, so that ordering is backwards — but the leak is the real issue.",
+          "Deferred calls run last-in-first-out, so that ordering is backwards: but the leak is the real issue.",
       },
       {
         text: "The compiler hoists the defer to the end of the loop body when there is no return",
@@ -546,7 +546,7 @@ export const PYGO_ENTRIES: BankEntry[] = [
       {
         text: "Both sides exit, but buffered items are lost and the request returns partial data",
         whyTempting:
-          "Partial data is what you would see if the consumer did exit — which is exactly what fails here.",
+          "Partial data is what you would see if the consumer did exit: which is exactly what fails here.",
       },
     ],
     correct: 0,
@@ -705,7 +705,7 @@ export const PYGO_ENTRIES: BankEntry[] = [
       {
         text: "Still 0, since b's capacity is 2, so append is obliged to grow into new storage",
         whyTempting:
-          "Slicing keeps the original capacity, so b's cap is 10, not 2 — length and capacity differ here.",
+          "Slicing keeps the original capacity, so b's cap is 10, not 2: length and capacity differ here.",
       },
       {
         text: "7, but only once a is re-sliced; until then the write lives in a's private copy",
@@ -721,7 +721,7 @@ export const PYGO_ENTRIES: BankEntry[] = [
     concept: "go-slice-aliasing",
     difficulty: "hard",
     prompt:
-      "A parser reads 4 MB HTTP bodies and caches `body[begin:end]` — a 60-byte token — in a long-lived map. Memory grows far beyond what the cache should hold. Why?",
+      "A parser reads 4 MB HTTP bodies and caches `body[begin:end]`, a 60-byte token, in a long-lived map. Memory grows far beyond what the cache should hold. Why?",
     options: [
       {
         text: "Map buckets over-allocate, so each 60-byte value ends up occupying a whole memory page",
