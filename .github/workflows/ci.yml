@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [18, 20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      # The bank audit is the real gate here: it fails if the correct answer is
+      # the longest option too often, which is how multiple choice quietly
+      # becomes gameable without anyone noticing.
+      - run: npm run audit:bank
+
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      # Quick mode must work with no API key, no network and no Claude Code.
+      # If this step ever needs a secret, the default path has regressed.
+      - run: node dist/cli/index.js --help

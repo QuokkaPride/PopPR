@@ -1,0 +1,62 @@
+{
+  "name": "poppr",
+  "version": "0.1.0",
+  "description": "Pop quiz for your pull request. Don't merge what you can't explain.",
+  "keywords": [
+    "pull-request",
+    "code-review",
+    "quiz",
+    "learning",
+    "ai",
+    "claude",
+    "git",
+    "pr"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "poppr": "./dist/cli/index.js"
+  },
+  "main": "./dist/core/index.js",
+  "types": "./dist/core/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/cli/index.js",
+    "audit:bank": "node scripts/audit-bank.mjs",
+    "test": "npm run build && npm run audit:bank",
+    "prepublishOnly": "npm run build && npm run audit:bank",
+    "demo": "node demo/frames.mjs > /tmp/poppr-frames.json && python3 demo/render.py /tmp/poppr-frames.json demo/poppr.gif"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "picocolors": "^1.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.0",
+    "typescript": "^5.6.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/QuokkaPride/PopPR.git"
+  },
+  "bugs": {
+    "url": "https://github.com/QuokkaPride/PopPR/issues"
+  },
+  "homepage": "https://github.com/QuokkaPride/PopPR#readme",
+  "author": "QuokkaPride"
+}
