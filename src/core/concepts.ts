@@ -72,16 +72,25 @@ function extensionOf(path: string): string {
 }
 
 /**
- * Prose that merely mentions a concept is not a use of it. Found by running
- * PopPR on its own docs PR: `retry-backoff` matched the word "retry" in
- * HANDOFF.md and `cache-invalidation` matched "a cache with no eviction" in the
- * README, so a pure documentation change produced a quiz about caching.
+ * Text that merely mentions a concept is not a use of it. Both halves of this
+ * were found by running PopPR on its own PRs:
  *
- * This is not the loose-regex problem that `--smart` exists to solve. Markdown
- * is not code, so no amount of pattern tuning makes matching it correct.
+ *   - Prose: `retry-backoff` matched the word "retry" in HANDOFF.md, and
+ *     `cache-invalidation` matched "a cache with no eviction" in the README, so
+ *     a pure documentation change produced a quiz about caching.
+ *   - Config: `cache-invalidation` matched `cache: npm` in a GitHub Actions
+ *     workflow.
+ *
+ * This is not the loose-regex problem that `--smart` exists to solve. Every
+ * bank question is about code semantics, so no question can apply to a
+ * changelog or a YAML key no matter how the pattern is tuned.
  */
-const PROSE_EXTENSIONS = new Set([
+const NON_CODE_EXTENSIONS = new Set([
+  // prose
   ".md", ".mdx", ".markdown", ".txt", ".rst", ".adoc", ".org",
+  // config and data
+  ".yml", ".yaml", ".json", ".toml", ".ini", ".cfg", ".conf",
+  ".lock", ".csv", ".xml", ".plist",
 ]);
 
 /** Lines the diff ADDS. We quiz on what you introduced, not what was there. */
@@ -112,7 +121,7 @@ export function detectConcepts(ctx: PrContext): DetectedConcept[] {
 
   for (const file of ctx.files) {
     const ext = extensionOf(file.path);
-    if (PROSE_EXTENSIONS.has(ext)) continue;
+    if (NON_CODE_EXTENSIONS.has(ext)) continue;
     const added = addedLines(file);
     if (!added.trim()) continue;
 
