@@ -71,6 +71,19 @@ function extensionOf(path: string): string {
   return i === -1 ? "" : path.slice(i).toLowerCase();
 }
 
+/**
+ * Prose that merely mentions a concept is not a use of it. Found by running
+ * PopPR on its own docs PR: `retry-backoff` matched the word "retry" in
+ * HANDOFF.md and `cache-invalidation` matched "a cache with no eviction" in the
+ * README, so a pure documentation change produced a quiz about caching.
+ *
+ * This is not the loose-regex problem that `--smart` exists to solve. Markdown
+ * is not code, so no amount of pattern tuning makes matching it correct.
+ */
+const PROSE_EXTENSIONS = new Set([
+  ".md", ".mdx", ".markdown", ".txt", ".rst", ".adoc", ".org",
+]);
+
 /** Lines the diff ADDS. We quiz on what you introduced, not what was there. */
 function addedLines(file: DiffFile): string {
   return file.patch
@@ -99,6 +112,7 @@ export function detectConcepts(ctx: PrContext): DetectedConcept[] {
 
   for (const file of ctx.files) {
     const ext = extensionOf(file.path);
+    if (PROSE_EXTENSIONS.has(ext)) continue;
     const added = addedLines(file);
     if (!added.trim()) continue;
 

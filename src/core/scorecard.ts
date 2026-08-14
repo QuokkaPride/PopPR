@@ -2,9 +2,9 @@ import type { Answered, RunResult } from "./types.js";
 
 /**
  * Wordle's real invention was not the game, it was the emoji grid: tiny,
- * spoiler-free, pasteable anywhere. This is the equivalent — and critically it
- * contains NO code, no filenames, and no repo name, which is what makes it safe
- * to paste into a work Slack.
+ * spoiler-free, pasteable anywhere. This is the equivalent. It contains NO code,
+ * no filenames and no repo name, which is what makes it safe to paste into a
+ * work Slack.
  */
 export function scorecard(result: RunResult, runNumber: number): string {
   const grid = result.answered.map(cell).join("");
@@ -47,9 +47,9 @@ export function formatDuration(ms: number): string {
 export function verdictLine(result: RunResult): string {
   const total = result.answered.length || 1;
   const pct = result.correctCount / total;
-  if (pct >= 0.9) return "You could defend this in review. Ship with confidence.";
-  if (pct >= 0.7) return "Solid. A couple of soft spots worth a second look.";
-  if (pct >= 0.5) return "You know what it does. You don't yet know what it costs.";
-  if (pct >= 0.3) return "Be honest: how much of this did you actually read?";
-  return "You merged this. Your reviewer is going to ask. Go read it.";
+  if (pct >= 0.9) return "You could defend every line of this in review.";
+  if (pct >= 0.7) return "Solid, with a couple of soft spots worth a second look.";
+  if (pct >= 0.5) return "You can describe the change but not its failure modes.";
+  if (pct >= 0.3) return "How much of this did you read before merging?";
+  return "You merged this. Your reviewer will ask about it.";
 }

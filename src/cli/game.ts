@@ -93,6 +93,7 @@ export async function runGame(
         points,
         streak: opts.streak,
         totalMs: opts.durationMs,
+        number: answered.length + 1,
       });
 
       if (outcome.aborted) break;
@@ -157,6 +158,11 @@ interface AskContext {
   points: number;
   streak: number;
   totalMs: number;
+  /**
+   * Position in this run, 1-based. Not the bank id: ids look like `bank7`, so
+   * rendering one reads as "Qbank7" and jumps around as the staircase picks.
+   */
+  number: number;
 }
 
 /**
@@ -189,7 +195,7 @@ function askOne(
           `     ${pc.cyan("⚡ " + ctx.points.toLocaleString())}` +
           (ctx.combo > 0 ? `   ${pc.yellow(`🔥 x${(1 + 0.1 * Math.min(ctx.combo, 10)).toFixed(1)}`)}` : ""),
         "",
-        `  ${pc.dim("Q" + (question.id || ""))} ${difficultyTag(question.difficulty)} ${pc.dim(
+        `  ${pc.dim("Q" + ctx.number)} ${difficultyTag(question.difficulty)} ${pc.dim(
           "· " + question.concept,
         )}${" ".repeat(Math.max(1, 44 - question.concept.length))}${pc.dim("+" + value)}`,
         "",

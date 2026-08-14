@@ -115,7 +115,7 @@ export function renderReview(result: RunResult, runNumber: number, trends: Conce
 
   if (result.weakConcepts.length) {
     out.push(
-      pc.dim(`  These come back in a future run, on a different PR. That's the point.`),
+      pc.dim(`  These come back in a future run, on a different PR.`),
     );
     out.push("");
   }

@@ -25,12 +25,60 @@ STYLES = {
 }
 BOLD_KEYS = {"W", "M", "G", "R", "C"}
 
-FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
-BOLD_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf"
+# Regular and bold candidates, in preference order. The Linux paths were the
+# only ones here originally, which made `npm run demo` fail on the Mac this is
+# developed on. Menlo ships with macOS and is a .ttc collection, so PIL needs
+# the face index: 0 is regular, 1 is bold.
+FONT_CANDIDATES = [
+    ("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 0,
+     "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", 0),
+    ("/System/Library/Fonts/Menlo.ttc", 0, "/System/Library/Fonts/Menlo.ttc", 1),
+    ("/System/Library/Fonts/Supplemental/Andale Mono.ttf", 0,
+     "/System/Library/Fonts/Supplemental/Andale Mono.ttf", 0),
+]
 SIZE = 15
-font = ImageFont.truetype(FONT_PATH, SIZE)
-bold = ImageFont.truetype(BOLD_PATH, SIZE)
-hero = ImageFont.truetype(BOLD_PATH, SIZE * 6)
+
+
+def _load():
+    for regular, r_idx, bold_path, b_idx in FONT_CANDIDATES:
+        try:
+            return (
+                ImageFont.truetype(regular, SIZE, index=r_idx),
+                ImageFont.truetype(bold_path, SIZE, index=b_idx),
+                ImageFont.truetype(bold_path, SIZE * 6, index=b_idx),
+            )
+        except OSError:
+            continue
+    raise SystemExit(
+        "No monospace font found. Install DejaVu Sans Mono, or add your font "
+        "to FONT_CANDIDATES in demo/render.py."
+    )
+
+
+font, bold, hero = _load()
+
+
+def _missing(f, ch):
+    """True if `ch` renders as tofu. A .notdef box has a bbox like any glyph,
+    so compare against a private-use codepoint that is guaranteed absent."""
+    def raster(c):
+        im = Image.new("L", (60, 60), 0)
+        ImageDraw.Draw(im).text((5, 5), c, font=f, fill=255)
+        return im.tobytes()
+    return raster(ch) == raster("")
+
+
+# The CLI spins with braille dots. macOS system monospace fonts have no braille
+# block, so on a Mac those frames rendered as tofu boxes. Swap in quadrants,
+# which every candidate font has. Only the spinner is affected; every other
+# glyph in the demo (█ ✓ ✗ · → ⚡) is present everywhere we checked.
+BRAILLE = "⠋⠙⠹⠸⠼⠴⠦⠧"
+SPINNER_FALLBACK = "▖▘▘▝▝▗▗▖"
+SPINNER_MAP = (
+    {b: SPINNER_FALLBACK[i] for i, b in enumerate(BRAILLE)}
+    if _missing(font, BRAILLE[0])
+    else {}
+)
 
 CW = font.getbbox("M")[2] - font.getbbox("M")[0]  # cell width
 LH = 22                                            # line height
@@ -76,6 +124,8 @@ def render(frame):
     if is_flash:
         y = TITLE_H + (H - TITLE_H) // 2 - LH * 4
     for line in frame["lines"][:ROWS]:
+        if SPINNER_MAP:
+            line = line.translate(str.maketrans(SPINNER_MAP))
         x = PAD_X
         # Scorecard swatches are drawn as real squares — the emoji font does not
         # scale down cleanly, and rectangles look sharper at this size anyway.
