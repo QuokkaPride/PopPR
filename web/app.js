@@ -23,9 +23,9 @@ const RUN_MS = 180_000;
 /** Input ignored for this long after a question appears, so a late keypress
  *  from the previous one cannot answer this one. */
 const GUARD_MS = 500;
-/** A hit needs a beat; a miss needs long enough to read the right answer. */
+/** A correct answer has nothing to read, so it only needs a beat. A miss waits
+ *  for you instead, with the clock stopped. */
 const HIT_MS = 900;
-const MISS_MS = 2200;
 const $ = (id) => document.getElementById(id);
 const screens = [...document.querySelectorAll(".screen")];
 
@@ -153,6 +153,7 @@ const state = {
   deadline: 0,
   askedAt: 0,
   readyAt: 0,
+  pausedAt: 0,
   ticker: null,
   locked: false,
 };
@@ -191,6 +192,7 @@ function start() {
 }
 
 function tick() {
+  if (state.pausedAt) return; // reading a miss; the clock is stopped
   const remaining = Math.max(0, state.deadline - Date.now());
   $("clock").textContent = formatDuration(remaining);
   $("track-fill").style.width = `${(remaining / RUN_MS) * 100}%`;
@@ -212,6 +214,41 @@ function tick() {
   }
   if (!$("flash").hidden) return;
   finish();
+}
+
+/** Freeze the countdown. `deadline` is absolute, so resuming shifts it by the
+ *  time spent paused rather than trying to track remaining time separately. */
+function pauseClock() {
+  state.pausedAt = Date.now();
+}
+
+function resumeClock() {
+  if (!state.pausedAt) return;
+  state.deadline += Date.now() - state.pausedAt;
+  state.pausedAt = 0;
+}
+
+/** Any key or click continues. No specific key to hunt for, and no button to
+ *  aim at, because the run should stay playable from the keyboard alone. */
+function waitForContinue() {
+  return new Promise((resolve) => {
+    const done = () => {
+      document.removeEventListener("keydown", onKey, true);
+      document.removeEventListener("click", onClick, true);
+      resolve();
+    };
+    const onKey = (e) => {
+      if (e.repeat) return;
+      e.stopPropagation(); // never let this keypress answer the next question
+      e.preventDefault();
+      done();
+    };
+    const onClick = () => done();
+    // Capture phase, so the global answer handler cannot see this one.
+    document.addEventListener("keydown", onKey, true);
+    // A click on the very same tick that opened this would dismiss it instantly.
+    setTimeout(() => document.addEventListener("click", onClick, true), 60);
+  });
 }
 
 function next() {
@@ -283,22 +320,33 @@ function answer(key) {
 
   $("flash-mark").textContent = correct ? "✓" : "✗";
   $("flash-mark").className = correct ? "hit" : "miss";
-  if (correct) {
-    $("flash-sub").textContent = `+${event.points}`;
-  } else {
-    // Naming the right option beats printing its letter. "answer was C" is
-    // unreadable once the options are off screen.
-    const right = q.options.find((o) => o.key === q.correct);
-    rich($("flash-sub"), right ? right.text : `answer was ${q.correct}`);
-  }
-  show("flash");
 
-  setTimeout(() => {
-    // The clock running out should not yank a question away mid-thought, so
-    // the run ends here, between questions, rather than under one.
+  if (correct) {
+    // Nothing to read, so a beat is enough and the clock keeps running.
+    $("flash-sub").textContent = `+${event.points}`;
+    $("flash-cont").hidden = true;
+    show("flash");
+    setTimeout(() => {
+      if (Date.now() >= state.deadline) return finish();
+      next();
+    }, HIT_MS);
+    return;
+  }
+
+  // A miss is the only moment in the run with something to read, and reading
+  // under a running clock is exactly the trade this game should never ask for:
+  // the timer is meant to measure whether you know it, not how fast you read.
+  // So the clock stops, and you decide when to move on.
+  const right = q.options.find((o) => o.key === q.correct);
+  rich($("flash-sub"), right ? right.text : `answer was ${q.correct}`);
+  $("flash-cont").hidden = false;
+  show("flash");
+  pauseClock();
+  waitForContinue().then(() => {
+    resumeClock();
     if (Date.now() >= state.deadline) return finish();
     next();
-  }, correct ? HIT_MS : MISS_MS);
+  });
 }
 
 function buildResult() {
