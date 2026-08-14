@@ -11,6 +11,15 @@ npm test
 node dist/cli/index.js --local   # try it on your own branch
 ```
 
+`npm link` makes `poppr` available everywhere and runs your working copy rather
+than the published one, which is what you want while developing.
+
+Note that `npx @quokkapride/poppr` fails inside this repo with
+`sh: poppr: command not found`. That is npx, not a broken package: this
+directory declares the same package name, so npx resolves it locally and looks
+for a bin in `node_modules/.bin` that a package never links for itself. It works
+fine in any other directory.
+
 ## Adding questions
 
 1. **Make the concept detectable.** `src/core/concepts.ts` maps a regex to a

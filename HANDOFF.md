@@ -12,12 +12,15 @@ A pop quiz for your own pull request. You shipped it, an agent wrote most of it,
 and now you can't explain it. PopPR quizzes you on a three-minute clock and
 tells you what you didn't know.
 
-- **npm:** `@quokkapride/poppr`, v0.1.0, published 14 Aug 2026
+- **npm:** `@quokkapride/poppr`, v0.1.2
 - **GitHub:** https://github.com/QuokkaPride/PopPR
 - **Install:** `npx @quokkapride/poppr`. The command is `poppr`.
 - **License:** MIT
 
-Status: v0.1.0 is live and working. No users yet, no launch post yet.
+- **Browser:** https://quokkapride.github.io/PopPR/ (public repos only, `web/`)
+
+Status: live and working, on npm, on Pages, and commenting on its own PRs. No
+users yet, no launch post yet.
 
 ---
 

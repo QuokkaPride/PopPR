@@ -10,10 +10,14 @@ mechanics; that one covers the reasoning.
 
 ## Status
 
-- Live on npm as `@quokkapride/poppr` v0.1.0 (published 14 Aug 2026)
+- Live on npm as `@quokkapride/poppr` v0.1.2
 - Repo: https://github.com/QuokkaPride/PopPR
+- Browser version: https://quokkapride.github.io/PopPR/ (public repos, `web/`)
+- A GitHub Action comments on every PR with what it touches and a link to play
 - No users yet, no launch post yet
-- Next up: VS Code / Cursor extension. See the roadmap in `HANDOFF.md`.
+- Next up: bank coverage beyond JS/TS, React, Python, Go and SQL. Open source
+  spans every language, so this is now the binding constraint rather than a
+  nice-to-have. See the roadmap in `HANDOFF.md`.
 
 ## Commands
 
@@ -23,6 +27,8 @@ npm test             # build + bank audit. Run before every commit.
 npm run audit:bank   # the quality gate on its own
 node dist/cli/index.js --local          # try it against the current branch
 node dist/cli/index.js --local --smart  # same, but AI picks the concepts
+node dist/cli/index.js --detect         # what would it ask? no game, no clock
+npm run build:web                       # web/vendor/ for the browser version
 ```
 
 There is no test runner yet. `npm test` is the build plus the bank audit; adding

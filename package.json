@@ -1,6 +1,6 @@
 {
   "name": "@quokkapride/poppr",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Pop quiz for the pull request you just shipped. Multiple choice on your own diff, no API key needed.",
   "keywords": [
     "pull-request",
@@ -32,7 +32,9 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md",
+    "assets"
   ],
   "engines": {
     "node": ">=18"
