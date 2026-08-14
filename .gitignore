@@ -3,3 +3,4 @@ dist/
 scratch/
 *.log
 demo/*.json
+web/vendor/

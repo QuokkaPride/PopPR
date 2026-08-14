@@ -36,15 +36,28 @@ if (!data.concepts.length) {
   if (data.concepts.length > 8) {
     out.push(`| | and ${data.concepts.length - 8} more |`);
   }
+  // The link is the whole point: one click, no install, no account. It works
+  // because public repos need no GitHub token, which is also why open source
+  // is the right first audience for this.
+  const repo = process.env.GITHUB_REPOSITORY ?? "";
+  const [owner, name] = repo.split("/");
+  const pr = process.env.PR ?? "";
+  if (owner && name && pr) {
+    out.push(
+      "",
+      `**[Take the quiz](https://${owner.toLowerCase()}.github.io/${name}/?pr=${owner}/${name}/${pr})** · three minutes in your browser, nothing to install.`,
+    );
+  }
+
   out.push(
     "",
-    "<details><summary>Quiz yourself on it</summary>",
+    "<details><summary>Prefer the terminal?</summary>",
     "",
     "```bash",
-    `npx ${pkg} ${process.env.PR ?? ""}`.trim(),
+    `npx ${pkg} ${pr}`.trim(),
     "```",
     "",
-    "Three minutes, multiple choice, on your own diff. Nothing is reported back here and nothing leaves your machine.",
+    "Same quiz. Required for private repositories, where the browser version cannot read the diff.",
     "</details>",
   );
 }

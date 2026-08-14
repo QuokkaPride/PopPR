@@ -44,7 +44,8 @@
     "audit:bank": "node scripts/audit-bank.mjs",
     "test": "npm run build && npm run audit:bank",
     "prepublishOnly": "npm run build && npm run audit:bank",
-    "demo": "node demo/frames.mjs > /tmp/poppr-frames.json && python3 demo/render.py /tmp/poppr-frames.json demo/poppr.gif"
+    "demo": "node demo/frames.mjs > /tmp/poppr-frames.json && python3 demo/render.py /tmp/poppr-frames.json demo/poppr.gif",
+    "build:web": "npm run build && node scripts/build-web.mjs"
   },
   "dependencies": {
     "commander": "^12.1.0",

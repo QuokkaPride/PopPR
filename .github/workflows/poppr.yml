@@ -57,6 +57,7 @@ jobs:
       - name: Comment on the PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
         run: |
           node .github/scripts/poppr-comment.mjs detect.json > comment.md
