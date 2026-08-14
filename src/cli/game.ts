@@ -57,7 +57,9 @@ export async function runGame(
 ): Promise<RunResult> {
   const answered: Answered[] = [];
   const startedAt = Date.now();
-  const deadline = startedAt + opts.durationMs;
+  // Not a const: a miss stops the clock while the answer is read, and resuming
+  // pushes the deadline out by however long that took.
+  let deadline = startedAt + opts.durationMs;
 
   let points = 0;
   let combo = 0;
@@ -87,6 +89,7 @@ export async function runGame(
       }
       if (!question) break;
 
+      const beforeFlash = Date.now();
       const outcome = await askOne(question, {
         deadline,
         combo,
@@ -120,6 +123,8 @@ export async function runGame(
 
       if (outcome.chosen !== null) {
         await flash(correct, question, combo);
+      // Reading the answer is not play time, so give the clock back.
+      if (!correct) deadline += Date.now() - beforeFlash - outcome.ms;
       }
     }
   } finally {
@@ -256,16 +261,45 @@ function askOne(
  * until the review screen: making someone read a paragraph while their clock is
  * running is the fastest way to kill the flow state we just built.
  */
+/**
+ * A hit is 350ms of pure signal with nothing to read, which is what keeps the
+ * run moving.
+ *
+ * A miss is the one moment with something worth reading, and it used to print
+ * the bare letter of the right answer for half a second, which is unreadable
+ * once the options have scrolled away. It now names the option and waits for a
+ * keypress, with the clock stopped by the caller: the timer is meant to measure
+ * whether you know the answer, not how fast you read.
+ */
 function flash(correct: boolean, question: Question, combo: number): Promise<void> {
-  const lines = correct
-    ? [
-        "",
-        "",
-        `        ${pc.bold(pc.green("✓"))}`,
-        combo >= 3 ? `        ${pc.yellow(`${combo} in a row`)}` : "",
-      ]
-    : ["", "", `        ${pc.bold(pc.red("✗"))}`, `        ${pc.dim(question.correct)}`];
+  if (correct) {
+    draw([
+      "",
+      "",
+      `        ${pc.bold(pc.green("✓"))}`,
+      combo >= 3 ? `        ${pc.yellow(`${combo} in a row`)}` : "",
+    ]);
+    return new Promise((r) => setTimeout(r, 350));
+  }
 
-  draw(lines);
-  return new Promise((r) => setTimeout(r, correct ? 350 : 550));
+  const right = question.options.find((o) => o.key === question.correct);
+  draw([
+    "",
+    "",
+    `  ${pc.bold(pc.red("✗"))}`,
+    "",
+    ...wrap(`${pc.green(question.correct)}  ${right?.text ?? ""}`),
+    "",
+    `  ${pc.dim("clock paused · press any key to continue")}`,
+  ]);
+
+  return new Promise((resolve) => {
+    const onKey = (_s: string, key: { ctrl?: boolean; name?: string }) => {
+      if (key?.ctrl && key.name === "c") return; // let the main handler quit
+      process.stdin.off("keypress", onKey);
+      resolve();
+    };
+    process.stdin.on("keypress", onKey);
+    process.stdin.resume();
+  });
 }

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.3
+
+**The clock stops while you read a wrong answer.** A miss used to flash the bare
+letter of the correct option for half a second, which is unreadable once the
+options have scrolled away. It now names the option and waits for a keypress,
+with the countdown paused. The timer is there to measure whether you know the
+answer, not how fast you read. The browser version got this first; this brings
+the terminal in line.
+
 ## 0.1.2
 
 **A second pass over what you missed.** Reading an explanation is recognition;

@@ -1,6 +1,6 @@
 {
   "name": "@quokkapride/poppr",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Pop quiz for the pull request you just shipped. Multiple choice on your own diff, no API key needed.",
   "keywords": [
     "pull-request",
