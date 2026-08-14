@@ -1,5 +1,5 @@
 {
-  "name": "poppr",
+  "name": "@quokkapride/poppr",
   "version": "0.1.0",
   "description": "Pop quiz for your pull request. Don't merge what you can't explain.",
   "keywords": [
@@ -58,5 +58,8 @@
     "url": "https://github.com/QuokkaPride/PopPR/issues"
   },
   "homepage": "https://github.com/QuokkaPride/PopPR#readme",
-  "author": "QuokkaPride"
+  "author": "QuokkaPride",
+  "publishConfig": {
+    "access": "public"
+  }
 }

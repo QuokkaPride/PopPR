@@ -5,7 +5,7 @@
 You shipped the PR. Your agent wrote most of it. Now your boss is going to ask what it does.
 
 ```bash
-npx poppr
+npx @quokkapride/poppr
 ```
 
 60 seconds, multiple choice, on a clock. Then it tells you what you didn't know.
@@ -23,8 +23,8 @@ PopPR runs **after** you ship, not before. It isn't a gate and it doesn't block 
 ## Install
 
 ```bash
-npx poppr           # no install needed
-npm i -g poppr      # or keep it around
+npx @quokkapride/poppr              # no install needed
+npm i -g @quokkapride/poppr         # or keep it around, then just `poppr`
 ```
 
 No account. No API key. No config file. Quick mode works offline.
