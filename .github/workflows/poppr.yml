@@ -1,0 +1,79 @@
+name: PopPR
+
+# Posts what this PR would be quizzed on, as a comment the reviewer can see.
+#
+# It reports. It does not gate. There is no required check here and the job
+# always succeeds, because PopPR runs AFTER you ship: a gate on the one thing
+# the developer cares about is a gate that gets switched off within a week.
+#
+# It also cannot play the quiz for you. The quiz is timed and interactive, and
+# a runner has nobody at the keyboard, so this detects the concepts and leaves
+# the playing to a human.
+
+on:
+  pull_request:
+
+# Read the code, write one comment. Nothing else.
+permissions:
+  contents: read
+  pull-requests: write
+
+# A new push supersedes the previous run rather than racing it for the comment.
+concurrency:
+  group: poppr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  quiz:
+    runs-on: ubuntu-latest
+    # Forks get a read-only token, so commenting would fail through no fault of
+    # the contributor. Skip rather than show them a red X.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # detect diffs against the base branch, so we need its history
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      # Quick mode: regex over added lines against the curated bank. No API key,
+      # no network, no model. If this step ever needs a secret, the default path
+      # has regressed.
+      - name: Detect concepts
+        id: detect
+        run: |
+          node dist/cli/index.js --detect --json \
+            --local --base "origin/${{ github.event.pull_request.base.ref }}" \
+            > detect.json
+          cat detect.json
+
+      - name: Comment on the PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          node .github/scripts/poppr-comment.mjs detect.json > comment.md
+          cat comment.md
+
+          # One comment per PR, edited in place. A new comment on every push
+          # turns a helpful nudge into noise, which is how bots get muted.
+          marker='<!-- poppr-scorecard -->'
+          existing=$(gh api "repos/${{ github.repository }}/issues/$PR/comments" \
+            --jq "map(select(.body | contains(\"$marker\"))) | .[0].id // empty")
+
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$existing" \
+              -F body=@comment.md >/dev/null
+            echo "updated comment $existing"
+          else
+            gh api -X POST "repos/${{ github.repository }}/issues/$PR/comments" \
+              -F body=@comment.md >/dev/null
+            echo "created comment"
+          fi

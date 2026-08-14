@@ -40,10 +40,16 @@ program
   .option("-t, --time <seconds>", "how long the run lasts", "180")
   .option("--provider <name>", "claude-code | cursor-agent | anthropic | openai | openrouter | ollama")
   .option("--stats", "show your concept mastery over time and exit")
+  .option(
+    "--detect",
+    "print the concepts this diff touches and exit, without playing",
+  )
+  .option("--json", "machine-readable output, for --detect")
   .action(main);
 
 async function main(prArg: string | undefined, opts: Record<string, any>) {
   if (opts.stats) return showStats();
+  if (opts.detect) return detectOnly(prArg, opts);
 
   const cwd = process.cwd();
   const spin = startSpinner("Finding your PR");
@@ -174,6 +180,58 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
     console.error(pc.red(`\n  ${(err as Error).message}\n`));
     process.exit(1);
   }
+}
+
+/**
+ * What would this diff be quizzed on? No game, no clock, no history written.
+ *
+ * Exists because CI has nobody at the keyboard: a timed quiz cannot be played
+ * by a runner, so the GitHub Action reports what the PR touches and leaves the
+ * playing to a human. Also useful on its own for seeing why a run asked what it
+ * asked.
+ */
+async function detectOnly(prArg: string | undefined, opts: Record<string, any>) {
+  const cwd = process.cwd();
+  const ctx = await readDiff({ cwd, pr: opts.local ? undefined : prArg, base: opts.base });
+  const detected = detectConcepts(ctx);
+  const questions = bankQuestions(detected);
+
+  if (opts.json) {
+    console.log(
+      JSON.stringify(
+        {
+          label: ctx.label,
+          files: ctx.files.length,
+          concepts: detected.map((d) => ({
+            concept: d.concept,
+            files: d.files,
+            weight: d.weight,
+          })),
+          questions: questions.length,
+        },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
+
+  if (!detected.length) {
+    console.log(pc.dim(`\n  No bank concepts matched ${ctx.label}.\n`));
+    return;
+  }
+
+  console.log("");
+  console.log(`  ${pc.bold(pc.magenta("PopPR"))}  ${pc.dim(ctx.label)}`);
+  console.log("");
+  for (const d of detected) {
+    console.log(
+      `  ${d.concept.padEnd(24)} ${pc.dim(d.files.slice(0, 2).join(", "))}`,
+    );
+  }
+  console.log("");
+  console.log(pc.dim(`  ${questions.length} questions available. Play them with \`poppr\`.`));
+  console.log("");
 }
 
 async function showStats() {
