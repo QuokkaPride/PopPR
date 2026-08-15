@@ -5,92 +5,141 @@
 [![npm](https://img.shields.io/npm/v/@quokkapride/poppr)](https://www.npmjs.com/package/@quokkapride/poppr)
 [![license](https://img.shields.io/npm/l/@quokkapride/poppr)](LICENSE)
 
-**Pop quiz for the pull request you just shipped.**
+**Does the person who opened this PR understand it?**
 
-Your agent wrote most of it. Tomorrow someone asks you what it does.
+PopPR asks them, on their own diff, and posts the answer where you review.
 
 ```bash
-npx @quokkapride/poppr
+npx @quokkapride/poppr init
 ```
-
-Multiple choice on a three-minute clock, then a review screen showing what you missed.
 
 ![PopPR in action](https://raw.githubusercontent.com/QuokkaPride/PopPR/main/demo/poppr.gif)
 
-## Why
+## The problem
 
-AI writes the code, PRs get bigger, and your grasp of them gets thinner. You find out in review, when someone asks a question you can't answer.
+More of every contribution is now written by an agent, and a diff no longer tells you whether the person who sent it can explain it. You find out in review, three round trips in, on a patch that would have been faster to write yourself.
 
-PopPR runs after you ship. It gates nothing and blocks nothing. Getting the PR out is the goal; understanding it is what you do in the five minutes after.
+Nothing in your CI answers this. Tests check the code. Linters check the style. Nothing checks the author.
 
-## Install
+PopPR asks the contributor multiple-choice questions about the lines they changed and reports whether they got them right. Questions with correct answers, about their own diff.
+
+## Add it to your repo
 
 ```bash
-npx @quokkapride/poppr        # no install
-npm i -g @quokkapride/poppr   # or keep it, then run `poppr`
+npx @quokkapride/poppr init            # comments on every PR
+npx @quokkapride/poppr init --certify  # and reports a poppr/certified check
 ```
 
-No account, no API key, no config. Quick mode runs offline.
+That writes `.github/workflows/poppr.yml`. Commit it. There is nothing else to configure: no key, no account, no runner minutes beyond one `npx`.
 
-## Three modes
+**It never checks out or runs PR code.** The diff arrives as text through the API, which is what makes it safe on fork PRs and what makes it work on repos that are not Node at all.
 
-| | asks about | speed | needs AI |
+## What your contributors see
+
+A comment on the PR, naming the concept and the line that triggered it, so you can agree or disagree without opening a file:
+
+> **PopPR** · this PR touches 4 concepts with 11 questions in the bank.
+>
+> | concept | your line |
+> | --- | --- |
+> | `go-error-value-pair` | `pkg/store/document.go:88`<br>`ts, err := obj.GetUpdatedTimestamp()` |
+> | `go-map-zero-value` | `pkg/store/cache.go:31`<br>`availableCounters: make(map[PoolID]counterSets)` |
+>
+> [Play it](https://quokkapride.github.io/PopPR/) · 3 minutes, in your browser.
+
+They play in the browser or the terminal. It takes three minutes.
+
+## Making it required
+
+`--certify` adds one thing: the contributor has to answer **every** question correctly before `poppr/certified` goes green. They cannot fail it. Wrong answers come back, untimed, until they are right.
+
+To make it a real gate, add `poppr/certified` to your branch protection rules. That stays your decision, not something you inherit by turning a flag on.
+
+**What gets published is completion, never a score.** Retake counts stay private. The point is that someone engaged with their own diff, and publishing how many tries it took would only make contributors avoid it.
+
+## Options
+
+Everything is optional.
+
+```yaml
+- uses: QuokkaPride/PopPR@v1
+  with:
+    certify: true      # ask for every answer, report poppr/certified. default false
+    questions: 10      # how many the certify set holds. default 10
+    time: 180          # seconds on the timed first pass. default 180
+    token: ${{ secrets.GITHUB_TOKEN }}   # only if you want a named account
+```
+
+Your workflow needs `pull-requests: write`, plus `statuses: write` when certify is on. `init` writes both.
+
+## Try it on yourself first
+
+```bash
+npx @quokkapride/poppr --local
+```
+
+Quizzes your current branch. No install, no key, no network, about 50ms to start.
+
+```bash
+poppr             # your latest PR
+poppr 142         # a specific PR
+poppr --detect    # what would it ask? no game, no clock
+poppr practice    # drill your weak concepts, no PR involved
+poppr --stats     # what you are getting better at
+```
+
+## The three modes
+
+| | asks about | time to first question | needs AI |
 |---|---|---|---|
 | `poppr` | the concepts your diff touches | 50ms | no |
 | `poppr --smart` | the concepts that matter here | 12s | yes |
-| `poppr --deep` | your specific code, written fresh | ~3min | yes |
+| `poppr --deep` | your specific code, written fresh | 50ms | yes |
 
-**Quick** scans your added lines for `Promise.all`, a query inside a loop, a nullable column in a filter, a cache with no eviction, then serves hand-written questions on those concepts. Curated beats generated, and it runs offline in 50ms.
+**Quick** scans your added lines for the primitives that bite in production, then serves hand-written questions on them. 328 questions across JS/TS, React, Python, Go, Rust, Java, Ruby, C/C++ and SQL. Offline, instant, and the default because a tool you have to configure before the first play is a tool nobody plays.
 
-**Smart** spends one model call deciding which concepts matter in this change, then serves the same curated bank. Regex tells you `Promise.all` appears; smart mode tells you whether concurrency is a risk here. On the test repo it dropped two false positives the regex flagged and caught the unbounded `Map` the regex scored but couldn't weigh.
+**Smart** spends one model call deciding which concepts matter in this change, then serves the same curated bank. Regex tells you `Promise.all` appears; smart mode tells you whether concurrency is a risk here.
 
-**Deep** has a model write questions about your code: who calls the function you changed, what breaks if this line goes, why this approach over the obvious one. Slowest, and the only mode that names your variables.
+**Deep** has a model write questions about your code: who calls the function you changed, what breaks if this line goes, why this approach over the obvious one. It starts on bank questions and the written-for-you ones stream in as they land, so it is quick mode that gets better while you play.
 
-## Where the AI comes from
+PopPR ships no inference. Smart and deep borrow compute you already pay for: Claude Code if `claude` is on your PATH, then `cursor-agent`, then `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `OPENROUTER_API_KEY`, then a local model via `OLLAMA_HOST`.
 
-PopPR ships no inference. It borrows compute you already pay for, in this order:
+## Does it fire on real PRs?
 
-1. **Claude Code**, if `claude` is on your PATH. Costs nothing beyond your subscription.
-2. **Cursor**, via `cursor-agent`.
-3. **Your own key**: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`.
-4. **A local model**, via `OLLAMA_HOST`.
+Measured on 487 merged PRs from 28 repos, none of which were used to write a single detection rule:
 
-Quick mode needs none of them.
+| language | code PRs matching a concept | language | code PRs matching a concept |
+|---|---|---|---|
+| TypeScript | 79% | Ruby | 54% |
+| Rust | 69% | Java | 51% |
+| Go | 66% | C/C++ | 47% |
+| Python | 61% | **overall** | **60%** |
 
-## Picking a PR
+The other 40% are one guard, one renamed field, one new branch. Those get general engineering questions instead, so no PR with code in it comes back empty. A PR that adds no code at all gets nothing, on purpose.
 
-With no arguments, `poppr` finds the PR on your current branch through the GitHub CLI, falling back to your most recent PR in the repo.
+## How the questions stay honest
 
-```bash
-poppr                  # your latest PR
-poppr 142              # a specific PR
-poppr --local          # current branch vs its base, no GitHub needed
-poppr --local --base develop
-```
+Multiple choice rots when anything about the correct answer other than its content predicts it. Players find the pattern long before they notice they are using it, and the quiz keeps looking fine while it stops measuring anything.
 
-## Scoring
-
-Hard questions pay 3.5x easy ones, speed multiplies up to 1.6x, and a streak multiplies up to 2x. Speed alone would push you toward easy questions and recognition-level thinking, so the winning strategy is answering hard questions fast.
-
-Difficulty adapts as you go: two right steps up, one wrong steps down. It settles near 85% accuracy, where learning is fastest (Wilson et al., 2019). It is not trying to let you ace it.
-
-Explanations wait for the review screen. Reading a paragraph while your clock ticks kills the flow the game just built, so a run gives you a ✓ or ✗ and nothing else.
-
-## Progress
-
-```bash
-poppr --stats
-```
+So `npm test` measures what a player who never reads the question would score:
 
 ```
-  PopPR  23 runs  ·  🔥 12 day streak
+  poppr bank audit · 328 questions, 108 concepts
 
-  async/concurrency      ↑  79%  ▏███████████████   14 seen
-  retry-backoff          ↑  72%  ▏██████████████     9 seen
-  sql-null               ·  58%  ▏███████████        6 seen
+  correct-is-longest  23%   (limit 35%, floor 10%, chance 25%)
+  correct-is-shortest 11%   (limit 35%, floor 10%)
+  blind strategy      26%   (limit 37.5%, chance 25%)
+
+  ✓ bank is healthy
 ```
 
-Every question carries a transferable concept tag, so your history shows what you are getting better at. Miss a concept and it comes back days later against a different PR. Spaced repetition is what makes it stick.
+That gate has caught this bank three times, each in a different disguise. Correct-is-longest at 81%. Then correct-is-shortest at 48%, after the first fix overcorrected. Then a signature phrase in five correct answers and no distractors. Note the floors: being reliably un-extreme is as strong a tell as being reliably extreme.
+
+## Scoring and progress
+
+Hard questions pay 3.5x, speed multiplies up to 1.6x, streaks up to 2x, so the winning strategy is answering hard questions fast. Difficulty adapts as you go and settles near 85% accuracy, where learning is fastest (Wilson et al., 2019).
+
+Every question carries a transferable concept tag, so your history shows what you are getting better at. Miss one and it comes back days later against a different PR.
 
 History lives in `~/.poppr/history.json`. Nothing leaves your machine.
 
@@ -108,24 +157,14 @@ No code, no filenames, no repo name. Safe to paste in a work Slack.
 
 The question bank is the easiest place to start, and one good question benefits everyone who runs PopPR. Full guide in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-One rule governs it. Multiple choice rots when the correct answer is longer and more specific than the distractors, because players learn to pick the wordiest option without reading any code. The first hand-written version of this bank failed that way in 81% of questions, so `npm test` enforces the fix:
-
-```
-  correct-is-longest  3%   (limit 35%, random baseline 25%)
-  length ratio        0.92   (limit 1.1)
-  letter spread       A 22%  B 26%  C 22%  D 30%
-
-  ✓ bank is healthy
-```
-
-Write your three distractors first, at full specificity, then write the correct answer to match their length.
+Write your three distractors first, at full specificity, then write the correct answer to match. Every wrong option should be a real misconception someone holds, and `whyTempting` should name it.
 
 ## Roadmap
 
-- **GitHub Action.** Your score posts on the PR where the reviewer sees it, so "yes, I read what I shipped" stops being an assumption. It reports; it does not block the merge.
 - **VS Code / Cursor extension**, using the Copilot Language Model API so smart and deep modes need no key.
 - **Claude Code plugin** (`/quiz-me`).
-- **Bank coverage** for Rust, Java, Ruby, Swift.
+- **Bank coverage** for Swift, Kotlin, PHP and C#.
+- **Private repos in the browser**, which today need the terminal.
 
 ## License
 

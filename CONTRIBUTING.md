@@ -42,12 +42,19 @@ The first hand-written version of this bank failed that way in **81%** of
 questions, so it is a build gate rather than a guideline:
 
 ```
-  correct-is-longest  2%   (limit 35%, random baseline 25%)
-  length ratio        0.92   (limit 1.1)
+  correct-is-longest  23%   (limit 35%, floor 10%, random baseline 25%)
+  correct-is-shortest 11%   (limit 35%, floor 10%)
+  blind strategy      26%   (limit 37.5%, chance 25%)
 ```
 
+Note the **floors**. Fixing the first version overcorrected until the correct
+answer was never the longest and never the shortest, which made "drop both
+extremes and guess between the survivors" worth 56%. Being reliably un-extreme
+is as strong a tell as being reliably extreme.
+
 **Write your three distractors first, at full specificity. Then write the
-correct answer to match their length.**
+correct answer to match their length.** Aim for at least one distractor shorter
+than your correct answer and at least one longer.
 
 Every wrong option should be a real misconception someone holds, and
 `whyTempting` should name it in one sentence. That field is what the review

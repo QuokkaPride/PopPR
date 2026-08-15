@@ -1,10 +1,15 @@
 {
   "name": "@quokkapride/poppr",
-  "version": "0.2.0",
-  "description": "Pop quiz for the pull request you just shipped. Multiple choice on your own diff, no API key needed.",
+  "version": "0.3.0",
+  "description": "Does the contributor who opened this PR understand it? PopPR asks them, on their own diff, and posts the answer where you review.",
   "keywords": [
     "pull-request",
     "code-review",
+    "github-action",
+    "code-quality",
+    "open-source",
+    "maintainer",
+    "contributor",
     "quiz",
     "learning",
     "spaced-repetition",
@@ -13,8 +18,8 @@
     "ai",
     "claude",
     "github",
-    "git",
-    "pr"
+    "pr",
+    "onboarding"
   ],
   "license": "MIT",
   "type": "module",
@@ -47,7 +52,8 @@
     "test": "npm run build && npm run audit:bank && node --test test/*.test.mjs",
     "prepublishOnly": "npm run build && npm run audit:bank",
     "demo": "node demo/frames.mjs > /tmp/poppr-frames.json && python3 demo/render.py /tmp/poppr-frames.json demo/poppr.gif",
-    "build:web": "npm run build && node scripts/build-web.mjs"
+    "build:web": "npm run build && node scripts/build-web.mjs",
+    "test:deep": "npm run build && node scripts/deep-test.mjs"
   },
   "dependencies": {
     "commander": "^12.1.0",

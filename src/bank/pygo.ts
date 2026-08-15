@@ -9,7 +9,7 @@ export const PYGO_ENTRIES: BankEntry[] = [
       "A helper is written as `def add_tag(tag, tags=[]): tags.append(tag); return tags`. Callers invoke it three times passing only a tag. What does the third call return?",
     options: [
       {
-        text: "A one-element list, because the default `[]` is rebuilt on each call that omits it",
+        text: "A one-element list, because the default `[]` is always rebuilt on calls that omit it",
         whyTempting:
           "Defaults look like part of the call, but they are evaluated once, when the `def` statement runs.",
       },
@@ -18,9 +18,9 @@ export const PYGO_ENTRIES: BankEntry[] = [
         whyTempting:
           "Threading is a genuine hazard here, but the sharing already happens in a single-threaded program.",
       },
-      { text: "A three-element list, because every defaulted call appends to one shared list" },
+      { text: "A three-element list, because every defaulted call appends to the one list made at `def`" },
       {
-        text: "An empty list, because the parameter is rebound to a fresh `[]` before the body runs",
+        text: "An empty list, because the parameter is rebound to a fresh `[]` on entry, before the body runs",
         whyTempting:
           "Rebinding is what the None-sentinel fix does explicitly; nothing does it for you here.",
       },
@@ -35,14 +35,14 @@ export const PYGO_ENTRIES: BankEntry[] = [
     prompt:
       "Someone fixes a mutable default by writing `def f(items=None): items = items or []`. A caller passes a list it expects f to fill in place, and the list is empty. What goes wrong?",
     options: [
-      { text: "The caller's list is discarded, because an empty list is falsy" },
+      { text: "The caller's list is discarded, because `[]` is falsy, so f fills a throwaway" },
       {
         text: "Nothing; `or` substitutes only when the argument is None, so the caller's list survives",
         whyTempting:
           "`or` reads like a None check, but it fires on every falsy value: 0, '', [] and {} included.",
       },
       {
-        text: "It raises TypeError, since `None or []` evaluates to None rather than to a list",
+        text: "It raises TypeError: `None or []` evaluates to None rather than to a list",
         whyTempting:
           "`or` returns its right operand when the left one is falsy, so this expression is a list.",
       },
@@ -73,11 +73,11 @@ export const PYGO_ENTRIES: BankEntry[] = [
           "The call syntax in the signature suggests per-call evaluation; the expression runs once, when `def` executes.",
       },
       {
-        text: "The current time per call, but frozen per worker once the server forks its pool",
+        text: "The current time per call, then frozen per worker once the server forks its pool",
         whyTempting:
           "Forking does copy interpreter state, but that is not why the value is stale here.",
       },
-      { text: "The moment the module was imported, the same value for the process's whole life" },
+      { text: "The moment the module was imported, repeated in every report for the process's life" },
     ],
     correct: 3,
     explanation:
@@ -96,14 +96,14 @@ export const PYGO_ENTRIES: BankEntry[] = [
         whyTempting:
           "int() returns a plain int; the trouble is what `is` compares, not the type it produces.",
       },
-      { text: "`is` asks whether it is the same object, and ints above 256 are not interned" },
+      { text: "`is` asks whether it is the same object, and CPython interns ints only up to 256" },
       {
         text: "`is` compares values for ints, but the header has whitespace so the number differs",
         whyTempting:
           "int() tolerates surrounding whitespace, so the parsed number itself is perfectly fine.",
       },
       {
-        text: "The comparison is fine, so the real bug must be case-sensitive header lookup",
+        text: "The comparison is fine: the real bug is a case-sensitive header lookup",
         whyTempting:
           "Header casing is a real class of bug, but it would fail in tests too, not only in production.",
       },
@@ -124,7 +124,7 @@ export const PYGO_ENTRIES: BankEntry[] = [
           "== falls back to identity only when both __eq__ calls return NotImplemented, which ndarray never does.",
       },
       {
-        text: "Raises TypeError immediately, because numpy refuses to compare an array with None",
+        text: "Raises TypeError, because numpy refuses to compare an array with None",
         whyTempting:
           "numpy happily compares elementwise against None; the error surfaces one step later.",
       },
@@ -133,7 +133,7 @@ export const PYGO_ENTRIES: BankEntry[] = [
         whyTempting:
           "An empty array is falsy, which is a real trap, but == None does not return a plain bool at all.",
       },
-      { text: "Builds an elementwise array, and the `if` raises on its ambiguous truth value" },
+      { text: "Builds an elementwise array, and the `if` raises ValueError on its truth value" },
     ],
     correct: 3,
     explanation:
@@ -147,7 +147,7 @@ export const PYGO_ENTRIES: BankEntry[] = [
     options: [
       { text: "Each attribute access builds a new bound method object, so the two are never identical" },
       {
-        text: "Bound methods hash by identity, so the lookup misses unless you store a weakref.WeakMethod",
+        text: "Bound methods hash by identity: the lookup misses unless you store a weakref.WeakMethod",
         whyTempting:
           "WeakMethod solves handler lifetime, but bound methods compare and hash by value (__self__ and __func__).",
       },
@@ -186,7 +186,7 @@ export const PYGO_ENTRIES: BankEntry[] = [
       },
       { text: "`except:` catches BaseException, so KeyboardInterrupt is swallowed like anything else" },
       {
-        text: "`continue` clears the pending interrupt, which would otherwise propagate at loop exit",
+        text: "`continue` clears the pending interrupt, which would otherwise propagate when the loop ends",
         whyTempting:
           "`continue` does not interact with exception state; the exception was already handled by the bare except.",
       },
@@ -202,11 +202,11 @@ export const PYGO_ENTRIES: BankEntry[] = [
       "A cache-warm call was wrapped in `try: warm() except: pass` to make failures non-fatal. Months later the cache is always cold. What made this so hard to detect?",
     options: [
       {
-        text: "Logging is unaffected: the traceback still reaches the root logger, so the signal was there",
+        text: "Logging is unaffected, and the traceback still reaches the root logger, so the signal was there",
         whyTempting:
           "Nothing logs an exception you caught and discarded; `pass` is total silence by construction.",
       },
-      { text: "Any error, including a typo that raises NameError, is discarded with no record" },
+      { text: "Any error is discarded and nothing reaches a log: a typo raising NameError vanishes too" },
       {
         text: "The exception is re-raised at interpreter shutdown, where the traceback points at exit",
         whyTempting:
@@ -257,7 +257,7 @@ export const PYGO_ENTRIES: BankEntry[] = [
     prompt:
       "`defaults = {'flags': ['a']}` and `cfg = dict(defaults)`. Code then runs `cfg['flags'].append('b')`. What does `defaults['flags']` contain afterwards?",
     options: [
-      { text: "['a', 'b'], because both dicts point at the very same inner list" },
+      { text: "['a', 'b'], because both dicts hold a reference to that one shared inner list" },
       {
         text: "['a'], because dict() copies the mapping and everything reachable from it",
         whyTempting:
@@ -284,18 +284,18 @@ export const PYGO_ENTRIES: BankEntry[] = [
     prompt: "A grid is built with `grid = [[0] * 3] * 3` and then `grid[0][0] = 1` runs. What does grid hold?",
     options: [
       {
-        text: "Only grid[0][0] is 1, since the outer `*` copies each row into a fresh list",
+        text: "Only grid[0][0] is 1, since the outer `*` copies every row into a fresh list",
         whyTempting:
           "The outer `*` repeats references to one row object rather than duplicating the row.",
       },
       {
-        text: "An IndexError, because `[[0] * 3] * 3` actually builds one flat nine-element list",
+        text: "An IndexError, because `[[0] * 3] * 3` builds one flat nine-element list",
         whyTempting:
           "It really does build three entries, each of which is itself a list of three zeros.",
       },
-      { text: "Every row's first cell is 1, because the three rows are one list object" },
+      { text: "Every row's first cell is 1, because the three entries are the same list object" },
       {
-        text: "Only grid[0][0] is 1, until the outer list is resized and the rows start sharing",
+        text: "Only grid[0][0] is 1, and the rows begin sharing after the outer list is resized",
         whyTempting:
           "Resizing the outer list reallocates its pointer array; it has no effect on what the rows are.",
       },
@@ -315,7 +315,7 @@ export const PYGO_ENTRIES: BankEntry[] = [
         whyTempting:
           "copy.copy does build a new instance dict, but it fills it with the very same value objects.",
       },
-      { text: "Template and every job share one dict, so request ids overwrite each other" },
+      { text: "Template and every job share one headers dict, so each request id overwrites the last" },
       {
         text: "The assignment raises FrozenInstanceError, since copies of a dataclass are frozen",
         whyTempting:
@@ -350,7 +350,7 @@ export const PYGO_ENTRIES: BankEntry[] = [
           "Re-iterable containers like lists restart; a generator has one cursor and never rewinds.",
       },
       {
-        text: "Half of them, since counting consumes every other item from the shared cursor",
+        text: "Half of them, since counting takes every other item, and the writer is left with the rest",
         whyTempting:
           "Nothing interleaves here: the count runs to completion before the second loop starts.",
       },
@@ -376,7 +376,7 @@ export const PYGO_ENTRIES: BankEntry[] = [
         whyTempting:
           "Short-circuiting stops the loop early; it cannot push already-consumed items back in.",
       },
-      { text: "Nothing when no record is bad, and only the items past the bad one otherwise" },
+      { text: "Nothing when no record is bad, but only the items after the first bad one otherwise" },
       {
         text: "Nothing either way, since any() must drain the whole iterable before it can answer",
         whyTempting:
@@ -393,7 +393,7 @@ export const PYGO_ENTRIES: BankEntry[] = [
     prompt:
       "A helper reads `def read_ids(path): with open(path) as f: return (line.strip() for line in f)`. Callers get ValueError: I/O operation on closed file. What is the cause?",
     options: [
-      { text: "The `with` block exits at return, and the generator reads the file only later" },
+      { text: "The `with` block closes the file at return, but the generator reads it at iteration" },
       {
         text: "The file object is garbage-collected when read_ids returns, closing it before use",
         whyTempting:
@@ -423,13 +423,13 @@ export const PYGO_ENTRIES: BankEntry[] = [
       "A function loops over 10,000 paths, calling os.Open and then `defer f.Close()` inside the loop body. What is the consequence?",
     options: [
       {
-        text: "Each file closes when its iteration ends, so only one handle is open at any moment",
+        text: "Each file closes when its iteration ends: only one handle is open at any moment",
         whyTempting:
           "defer is scoped to the enclosing function, not to the block; ending an iteration runs nothing.",
       },
-      { text: "All 10,000 handles stay open until the function returns, risking EMFILE" },
+      { text: "All 10,000 handles stay open until the function returns, and the process risks EMFILE" },
       {
-        text: "The deferred closes run in loop order at return, so the earliest files close last",
+        text: "The deferred closes run in loop order at return, so the earliest files stay open longest",
         whyTempting:
           "Deferred calls run last-in-first-out, so that ordering is backwards: but the leak is the real issue.",
       },
@@ -460,11 +460,11 @@ export const PYGO_ENTRIES: BankEntry[] = [
           "Deferred calls run at return; it is their arguments that are computed up front.",
       },
       {
-        text: "start is captured into the closure by value, so it measures against a stale copy",
+        text: "start is captured into the closure by value, and the log measures against a stale copy",
         whyTempting:
           "There is no closure here, and a copied time.Time would still measure from the same instant.",
       },
-      { text: "Arguments to a deferred call are evaluated at the defer statement, not at return" },
+      { text: "Arguments to a deferred call are evaluated at the `defer` statement and stored there" },
     ],
     correct: 3,
     explanation:
@@ -477,7 +477,7 @@ export const PYGO_ENTRIES: BankEntry[] = [
       "A loop over shards does `mu.Lock(); defer mu.Unlock(); update(shard)` inside the body, with a plain sync.Mutex. What happens on the second iteration?",
     options: [
       {
-        text: "It proceeds, because Go runs pending defers early when a statement would otherwise block",
+        text: "It proceeds, because Go runs pending defers early when a statement is about to block on a lock",
         whyTempting:
           "The runtime never runs defers ahead of schedule; it cannot know that a Lock is about to block.",
       },
@@ -488,7 +488,7 @@ export const PYGO_ENTRIES: BankEntry[] = [
       },
       { text: "It blocks forever on Lock, since the deferred Unlock only runs when the function returns" },
       {
-        text: "It panics with 'sync: unlock of unlocked mutex' once the deferred calls finally unwind",
+        text: "It panics with 'sync: unlock of unlocked mutex' once the deferred calls unwind",
         whyTempting:
           "That panic comes from an extra Unlock, but here execution never reaches the return at all.",
       },
@@ -515,7 +515,7 @@ export const PYGO_ENTRIES: BankEntry[] = [
         whyTempting:
           "That panic fires only when every goroutine in the process is blocked, not just one of them.",
       },
-      { text: "It blocks forever on the send, leaking its stack and everything it references" },
+      { text: "It blocks forever on the send: its stack and everything it references leak" },
       {
         text: "It completes, because a send with no receiver is dropped once the context is cancelled",
         whyTempting:
@@ -532,21 +532,21 @@ export const PYGO_ENTRIES: BankEntry[] = [
     prompt:
       "A pipeline stage runs `for v := range in { ... }` while its producer returns early on error without ever closing `in`. What is the symptom under sustained load?",
     options: [
-      { text: "The consumer parks on receive forever, leaking a goroutine per failed request" },
+      { text: "One goroutine leaks per failed request, because the consumer parks on the receive forever" },
       {
-        text: "The consumer receives a zero value and exits the range loop, so nothing leaks",
+        text: "The consumer receives a zero value and exits the `range` loop, so nothing leaks",
         whyTempting:
-          "Ranging yields zero values from a closed channel; an open but idle channel simply blocks.",
+          "Ranging yields zero values from a closed channel; an open but idle channel blocks.",
       },
       {
-        text: "The runtime notices the orphaned channel and closes it once the producer's stack unwinds",
+        text: "The runtime notices the orphaned channel and closes it once the producer's stack has unwound",
         whyTempting:
           "Nothing closes channels automatically; they are only reclaimed when wholly unreachable.",
       },
       {
-        text: "Both sides exit, but buffered items are lost and the request returns partial data",
+        text: "Both sides exit, and buffered items are lost, so the request returns partial data",
         whyTempting:
-          "Partial data is what you would see if the consumer did exit: which is exactly what fails here.",
+          "Partial data is what you would see if the consumer did exit, which is exactly what fails here.",
       },
     ],
     correct: 0,
@@ -570,11 +570,11 @@ export const PYGO_ENTRIES: BankEntry[] = [
           "Rising pauses signal heap pressure, and a flat goroutine count argues against this diagnosis.",
       },
       {
-        text: "Process RSS is well above the heap size reported by runtime.MemStats.HeapAlloc",
+        text: "Process RSS is well above the heap size reported by `runtime.MemStats.HeapAlloc`",
         whyTempting:
           "RSS above HeapAlloc is normal: it also covers stacks, spans and memory not yet returned to the OS.",
       },
-      { text: "NumGoroutine rises monotonically and pprof shows thousands parked at one line" },
+      { text: "NumGoroutine climbs with no ceiling, and pprof shows thousands parked at one line" },
     ],
     correct: 3,
     explanation:
@@ -593,7 +593,7 @@ export const PYGO_ENTRIES: BankEntry[] = [
         whyTempting:
           "Reads from a nil map are explicitly legal and return the zero value; only writes panic.",
       },
-      { text: "The read yields the empty string, and the write panics on assignment to a nil map" },
+      { text: "The read yields the empty string, but the write panics on assignment to a nil map" },
       {
         text: "Both succeed, because the map is allocated lazily on first use, like append does for a nil slice",
         whyTempting:
@@ -625,7 +625,7 @@ export const PYGO_ENTRIES: BankEntry[] = [
         whyTempting:
           "delete looks like mutation, but the spec makes it a no-op when the map is nil.",
       },
-      { text: "None of them; every read-shaped operation is defined on a nil map" },
+      { text: "None of them: each read-shaped operation treats a nil map as an empty one" },
       {
         text: "len panics, and the rest operate on a shared empty map supplied by the runtime",
         whyTempting:
@@ -642,14 +642,14 @@ export const PYGO_ENTRIES: BankEntry[] = [
     prompt:
       "Config is decoded into `type Cfg struct{ Limits map[string]int }`. For a payload containing `\"Limits\": null`, later code runs `cfg.Limits[\"rps\"] = 100`. What is the result?",
     options: [
-      { text: "It panics, because null leaves the field nil and Unmarshal allocates nothing" },
+      { text: "It panics, because null leaves the field nil and Unmarshal allocates no map for it" },
       {
         text: "It works, because encoding/json always allocates maps for declared map fields",
         whyTempting:
           "json allocates only when there is an object to fill; null and an absent key both leave nil.",
       },
       {
-        text: "It works, since assigning to a map field of an addressable struct allocates it first",
+        text: "It works: assigning to a map field of an addressable struct allocates it first",
         whyTempting:
           "Addressability decides whether you may assign to the field, not whether a map exists behind it.",
       },
@@ -671,12 +671,12 @@ export const PYGO_ENTRIES: BankEntry[] = [
     prompt: "Given `a := []int{1, 2, 3, 4, 5}` and `b := a[1:3]`, code executes `b[0] = 99`. What is a[1]?",
     options: [
       {
-        text: "Unchanged, because slicing copies the selected elements into a new array",
+        text: "Unchanged: slicing copies the selected elements into a new array",
         whyTempting:
           "Slicing does create a new slice header, but it points into the original backing array.",
       },
       {
-        text: "Unchanged, unless b had been created with the three-index form a[1:3:3]",
+        text: "Unchanged, unless b had been created with the three-index form `a[1:3:3]`",
         whyTempting:
           "The three-index form caps capacity to control appends; it never separates the elements.",
       },
@@ -701,7 +701,7 @@ export const PYGO_ENTRIES: BankEntry[] = [
         whyTempting:
           "append reuses the backing array whenever spare capacity exists; it only reallocates when forced.",
       },
-      { text: "7, because b inherited a's capacity and append wrote into a's third slot" },
+      { text: "7, because b inherited a's capacity of 10 and append wrote into a's third slot" },
       {
         text: "Still 0, since b's capacity is 2, so append is obliged to grow into new storage",
         whyTempting:
@@ -733,7 +733,7 @@ export const PYGO_ENTRIES: BankEntry[] = [
         whyTempting:
           "Slicing never copies, and the runtime attaches no finalizers to slices or their arrays.",
       },
-      { text: "The subslice points into the 4 MB array, which stays alive as long as it does" },
+      { text: "The subslice points into the 4 MB backing array, so the map entry keeps all of it alive" },
       {
         text: "Strings converted from the subslice share its storage, so the two are retained together",
         whyTempting:

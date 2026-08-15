@@ -265,3 +265,52 @@ test("bankQuestions can draw more than two questions from one concept, unlike ce
     "the scored run is free to lean on one concept, which is exactly why certify does not use it",
   );
 });
+
+// ── docstrings are prose ───────────────────────────────────────────────────
+
+test("a concept mentioned inside a Python docstring is not a use of it", async () => {
+  const { detectConcepts } = await import("../dist/core/concepts.js");
+
+  // The docstring opens on a context line, which is the realistic case: the
+  // diff edits prose inside a docstring the change did not open.
+  const patch = [
+    "@@ -1,4 +1,6 @@",
+    ' def handler(resp):',
+    '     """',
+    '+    Compare with `is` only for None: `if status is 404` fails because',
+    '+    small ints are cached but large ones are not.',
+    '     """',
+    "+    return resp",
+  ].join("\n");
+
+  const hits = detectConcepts({
+    label: "t", repo: "t", base: "a", head: "b",
+    files: [{ path: "h.py", status: "modified", additions: 3, deletions: 0, patch }],
+  });
+
+  assert.ok(
+    !hits.some((h) => h.concept === "python-identity"),
+    "prose inside a docstring triggered a concept",
+  );
+});
+
+test("code after a docstring closes is detected again", async () => {
+  const { detectConcepts } = await import("../dist/core/concepts.js");
+
+  const patch = [
+    "@@ -1,3 +1,5 @@",
+    ' def handler(resp):',
+    '+    """Doc mentioning nothing."""',
+    "+    if resp.status is 404:",
+    "+        return None",
+  ].join("\n");
+
+  const hits = detectConcepts({
+    label: "t", repo: "t", base: "a", head: "b",
+    files: [{ path: "h.py", status: "modified", additions: 3, deletions: 0, patch }],
+  });
+
+  const found = hits.find((h) => h.concept === "python-identity");
+  assert.ok(found, "real code after a one-line docstring was skipped");
+  assert.match(found.evidence[0].text, /status is 404/);
+});

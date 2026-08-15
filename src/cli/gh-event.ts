@@ -11,7 +11,7 @@ import {
   quizUrl,
   verifyDecision,
 } from "../core/certify.js";
-import { detectConcepts, type DetectedConcept } from "../core/concepts.js";
+import { codeFiles, detectConcepts, type DetectedConcept } from "../core/concepts.js";
 import { readDiff } from "../core/diff.js";
 
 /**
@@ -83,6 +83,8 @@ interface Detection {
   label: string;
   files: number;
   concepts: DetectedConcept[];
+  /** Files adding real code, which is what licenses a general-engineering top-up. */
+  codeFiles: string[];
 }
 
 /**
@@ -127,8 +129,21 @@ async function handlePullRequest(event: EventPayload, cfg: Config): Promise<void
   const prAuthor = pr.user?.login ?? "";
   if (!headSha) throw new Error(`PR #${number} has no head sha in the payload.`);
 
-  const detection = await detect(number);
-  const questions = countQuestions(detection.concepts, cfg);
+  // Reading the diff and listing the comments are independent and both are
+  // network round trips, so they overlap. On a runner this is most of the job's
+  // wall clock: `detect` shells out to gh twice on its own.
+  //
+  // Promise.all rejects on the first failure, which is the behaviour we want
+  // here. There is no useful partial state: without the diff there is nothing
+  // to say, and without the comments the upsert would post a duplicate rather
+  // than edit.
+  const [detection, comments] = await Promise.all([
+    detect(number),
+    listComments(cfg, number),
+  ]);
+  const questions = countQuestions(detection.concepts, cfg, {
+    codeFiles: detection.codeFiles,
+  });
   const found = detection.concepts.map((c) => c.concept);
   log(
     `#${number} at ${headSha.slice(0, 7)}: ${plural(found.length, "concept")}, ` +
@@ -151,10 +166,8 @@ async function handlePullRequest(event: EventPayload, cfg: Config): Promise<void
     return;
   }
 
-  // One GET feeds both the comment upsert and the certify reconcile. They want
-  // the same list, and the API is the slow part of this job.
-  const comments = await listComments(cfg, number);
-
+  // One GET feeds both the comment upsert and the certify reconcile: they want
+  // the same list.
   const body = detectComment(
     {
       concepts: detection.concepts,
@@ -228,12 +241,13 @@ async function detect(number: number): Promise<Detection> {
       label: ctx.label,
       files: ctx.files.length,
       concepts: detectConcepts(ctx),
+      codeFiles: codeFiles(ctx),
     };
   } catch (err) {
     const message = (err as Error)?.message ?? "";
     if (/no reviewable/i.test(message)) {
       log(`#${number} has no reviewable changes once generated files are filtered`);
-      return { label: `PR #${number}`, files: 0, concepts: [] };
+      return { label: `PR #${number}`, files: 0, concepts: [], codeFiles: [] };
     }
     throw err;
   }
@@ -247,9 +261,16 @@ async function detect(number: number): Promise<Detection> {
  * scored run's number on a certify PR would advertise a longer gate than the
  * one the contributor is actually asked to clear.
  */
-function countQuestions(concepts: DetectedConcept[], cfg: Config): number {
-  if (!cfg.certify) return bankQuestions(concepts).length;
-  return certifySet(concepts, cfg.questions ? { limit: cfg.questions } : {}).length;
+function countQuestions(
+  concepts: DetectedConcept[],
+  cfg: Config,
+  topUp: { codeFiles: string[] },
+): number {
+  if (!cfg.certify) return bankQuestions(concepts, 20, topUp).length;
+  return certifySet(concepts, {
+    ...(cfg.questions ? { limit: cfg.questions } : {}),
+    topUp,
+  }).length;
 }
 
 /** The newest comment on this head that the author signed. Newest first, because

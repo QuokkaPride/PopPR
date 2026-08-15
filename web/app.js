@@ -18,8 +18,9 @@
  * whatever is not yet right until all of it is. The rules of that ending are
  * core's, not this file's, so the browser and the terminal cannot drift.
  */
-import { detectConcepts } from "./vendor/core/concepts.js";
+import { codeFiles, detectConcepts } from "./vendor/core/concepts.js";
 import { bankQuestions, certifySet } from "./vendor/core/bank.js";
+import { UNIVERSAL_CONCEPTS } from "./vendor/bank/index.js";
 import { Staircase } from "./vendor/core/adaptive.js";
 import { MasteryLoop } from "./vendor/core/mastery.js";
 import { certifyComment, MAX_CERTIFY_QUESTIONS } from "./vendor/core/certify.js";
@@ -224,13 +225,14 @@ async function load(target, opts) {
   // A certify set is smaller and round-robins across concepts, because every
   // question in it has to be answered correctly before merging and one concept
   // must not be able to monopolise that.
+  const topUp = { codeFiles: codeFiles(ctx) };
   const questions = opts.certify
-    ? certifySet(detected, { limit: opts.questions || 10 })
-    : bankQuestions(detected);
+    ? certifySet(detected, { limit: opts.questions || 10, topUp })
+    : bankQuestions(detected, 20, topUp);
 
   if (!questions.length) {
     throw new Error(
-      `No bank concepts matched ${ctx.label}. The bank covers JS/TS, React, Python, Go and SQL; other languages come up empty for now.`,
+      `Nothing to ask about ${ctx.label}: it adds no lines of code that PopPR can read. Documentation, lockfile and generated-code changes come up empty on purpose.`,
     );
   }
 
@@ -329,6 +331,16 @@ function showWhy(question) {
   const row = $("why");
   const ev = question.evidence && question.evidence[0];
   if (!ev) {
+    // A topped-up general question was not triggered by anything, and saying so
+    // beats a blank row: "why am I being asked this" is what this row is for.
+    if (UNIVERSAL_CONCEPTS.has(question.concept)) {
+      const link = $("why-where");
+      link.textContent = "general engineering";
+      link.removeAttribute("href");
+      $("why-code").textContent = "not from a line in this diff";
+      row.hidden = false;
+      return;
+    }
     row.hidden = true;
     return;
   }
@@ -339,7 +351,7 @@ function showWhy(question) {
   // GitHub anchors a diff line by the SHA-256 of the file path, which we cannot
   // compute here, so link to the Files tab and let the browser's find do the
   // rest. A link that lands on the right file beats no link.
-  link.href = state.ctx?.url ? `${state.ctx.url}/files` : "#";
+  link.setAttribute("href", state.ctx?.url ? `${state.ctx.url}/files` : "#");
   $("why-code").textContent = ev.text;
   row.hidden = false;
 }
@@ -784,8 +796,14 @@ async function copyInto(button, text, label) {
   setTimeout(() => (button.textContent = label), 2000);
 }
 
-$("certify-copy").addEventListener("click", () => {
-  copyInto($("certify-copy"), $("certify-comment").textContent, "Copy comment");
+$("certify-copy").addEventListener("click", async () => {
+  await copyInto($("certify-copy"), $("certify-comment").textContent, "Copy comment");
+  // The link only appears once there is something on the clipboard to paste.
+  // Showing both at once makes the reader choose; showing them in order makes
+  // the next step obvious, and pasting is the step that actually opens the
+  // check. It stays visible after the label resets, since the copy is done.
+  const open = $("certify-pr");
+  if (open.href && open.href !== "#") open.hidden = false;
 });
 
 // Deep link: ?pr=owner/repo/123 plays immediately, which is the whole point of

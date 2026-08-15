@@ -9,17 +9,17 @@ export const ASYNC_ENTRIES: BankEntry[] = [
       "`const users = await Promise.all(ids.map(id => fetchUser(id)))`. The requests finish in wildly different times. What order are the entries in `users`?",
     options: [
       {
-        text: "Completion order: the fastest response lands at index 0, so you re-sort by id",
+        text: "Completion order: the fastest response lands in `users[0]`, so you re-sort by id",
         whyTempting:
-          "Event-style fan-out APIs really do deliver in completion order; Promise.all does not work that way.",
+          "Event-style fan-out APIs do deliver in completion order; Promise.all does not work that way.",
       },
       {
-        text: "Input order, but only when every request succeeds: a rejection compacts the rest",
+        text: "Input order, but only when every request succeeds: a rejection compacts around the gap",
         whyTempting:
           "On rejection there is no array at all, so there is nothing left to compact or reorder.",
       },
       {
-        text: "Input order: `users[i]` is always the result of `ids[i]`, whoever finished first",
+        text: "Input order, and `users[i]` is always the result of `ids[i]` whoever finished first",
       },
       {
         text: "Whatever order the microtask queue drains in, which the spec leaves unspecified",
@@ -53,7 +53,7 @@ export const ASYNC_ENTRIES: BankEntry[] = [
           "A settled promise is immutable: the first rejection wins and later ones cannot overwrite it.",
       },
       {
-        text: "It is discarded: the aggregate already settled, so the second error goes nowhere",
+        text: "It is dropped because the `Promise.all` promise had already settled and rejected",
       },
     ],
     correct: 3,
@@ -67,12 +67,12 @@ export const ASYNC_ENTRIES: BankEntry[] = [
       "`const a = loadA(); const b = loadB();` then `const ra = await a; const rb = await b;`. `loadB` rejects after 10ms; `loadA` resolves after 2s. What does this do that `await Promise.all([a, b])` would not?",
     options: [
       {
-        text: "Nothing: both forms start the work eagerly and await it, so they are equivalent",
+        text: "Nothing: both forms start the work eagerly and `await` it, so they are equivalent",
         whyTempting:
           "The timing is identical; the difference is only in when each rejection acquires a handler.",
       },
       {
-        text: "It leaves b's rejection unhandled for 2s, which Node can report and act on",
+        text: "It leaves b's rejection with no handler for 2s, which Node can report and act on",
       },
       {
         text: "It never runs loadB, because `await a` suspends before b's call is evaluated",
@@ -98,7 +98,7 @@ export const ASYNC_ENTRIES: BankEntry[] = [
       "`await Promise.race([fetchReport(), timeout(5000)])` throws your timeout error. What is `fetchReport()` doing one second later?",
     options: [
       {
-        text: "Still running, still holding its socket, and its result will be thrown away",
+        text: "Still running, still holding its socket, but nothing will read its result",
       },
       {
         text: "Aborted: losing the race rejects the promise, which unwinds the async function",
@@ -106,12 +106,12 @@ export const ASYNC_ENTRIES: BankEntry[] = [
           "Rejecting the race's own promise does nothing to the loser, and an async function cannot be unwound from outside.",
       },
       {
-        text: "Suspended until you race it again, since a promise memoises where it left off",
+        text: "Suspended until you race it again, since a promise memoises its progress",
         whyTempting:
           "Promises do memoise their eventual result, but they never pause: there is no suspended-promise state.",
       },
       {
-        text: "Collected by GC once the race settled, which closed the underlying connection",
+        text: "Collected by GC once the race settled, and that closed the underlying connection",
         whyTempting:
           "In-flight I/O keeps the promise reachable, and closing sockets was never the collector's job.",
       },
@@ -127,12 +127,12 @@ export const ASYNC_ENTRIES: BankEntry[] = [
       "You race reads against three replicas and take the first answer. The nearest replica errors after 5ms; the other two would have answered in 40ms. What do you get?",
     options: [
       {
-        text: "The first successful value, since race skips rejections until every input fails",
+        text: "The first successful value, since `Promise.race` skips rejections until every input fails",
         whyTempting:
           "That is exactly Promise.any: it ignores rejections and only fails once all inputs have rejected.",
       },
       {
-        text: "An AggregateError after all three settle, listing one failure and two successes",
+        text: "An `AggregateError` once all three have settled, listing the failure and the successes",
         whyTempting:
           "AggregateError belongs to Promise.any, and only in the case where every single input rejected.",
       },
@@ -142,7 +142,7 @@ export const ASYNC_ENTRIES: BankEntry[] = [
           "Array position has no effect: the race is decided purely by which promise settles soonest.",
       },
       {
-        text: "The 5ms rejection: race settles on the first input to settle, however it settles",
+        text: "The 5ms rejection: `Promise.race` settles on the first input to settle, pass or fail",
       },
     ],
     correct: 3,
@@ -161,15 +161,15 @@ export const ASYNC_ENTRIES: BankEntry[] = [
           "There is no detach step anywhere in the spec: reactions stay on a promise until that promise itself settles.",
       },
       {
-        text: "Millions of timers pinned in the event loop, so the timer heap grows without bound",
+        text: "Millions of timers pinned in the event loop, and the timer heap grows unbounded",
         whyTempting:
           "Uncleared setTimeout does grow the timer heap, but this pattern schedules no timers at all.",
       },
       {
-        text: "Millions of reactions retained on shutdownSignal, growing the heap until it settles",
+        text: "Millions of reactions retained on `shutdownSignal`; the heap grows until shutdown",
       },
       {
-        text: "Handlers that fire twice when shutdownSignal finally settles, throwing during exit",
+        text: "Handlers that fire twice when shutdownSignal at last settles, throwing during exit",
         whyTempting:
           "A promise reaction runs at most once; the damage here is retained memory, not repeated execution.",
       },
@@ -184,15 +184,15 @@ export const ASYNC_ENTRIES: BankEntry[] = [
     concept: "await-in-loop",
     difficulty: "easy",
     prompt:
-      "You speed up `for (const row of rows) await upsert(row)` by rewriting it as `await Promise.all(rows.map(upsert))`. Which property did you just give up?",
+      "You speed up `for (const row of rows) await upsert(row)` by rewriting it as `await Promise.all(rows.map(upsert))`. Which property did you give up?",
     options: [
       {
-        text: "Type safety: Promise.all widens the results to `any[]` for dynamically sized arrays",
+        text: "Type safety: Promise.all widens every result to `any[]` for dynamically sized arrays",
         whyTempting:
           "Promise.all is precisely typed for both tuples and arrays; nothing about it degrades to any.",
       },
       {
-        text: "Serialisation: every upsert starts at once, so the database gets no backpressure",
+        text: "Serialisation: the upserts all start at once, so the database gets no backpressure",
       },
       {
         text: "Error propagation: a rejection inside map is swallowed instead of reaching the caller",
@@ -200,7 +200,7 @@ export const ASYNC_ENTRIES: BankEntry[] = [
           "That is forEach with an async callback; map plus Promise.all propagates the first rejection fine.",
       },
       {
-        text: "Result ordering: Promise.all hands back values in completion order, not row order",
+        text: "Result ordering: Promise.all returns values in completion order, not row order",
         whyTempting:
           "Promise.all preserves input order; it is the execution that becomes concurrent, not the results.",
       },
@@ -245,7 +245,7 @@ export const ASYNC_ENTRIES: BankEntry[] = [
       "A worker drains an in-memory queue with `while (q.length) { await handle(q.pop()) }`. `handle` is async but resolves from a local cache without ever touching I/O. The process stops answering health checks. Why?",
     options: [
       {
-        text: "await on an already-resolved value is elided by the engine, so the loop is synchronous",
+        text: "`await` on an already-resolved value is elided by the engine, so the loop is synchronous",
         whyTempting:
           "The await is not optimised away, and it does suspend, but suspending onto the microtask queue changes nothing for I/O.",
       },
@@ -255,12 +255,12 @@ export const ASYNC_ENTRIES: BankEntry[] = [
           "await schedules microtasks rather than timers, and timers would at least let I/O interleave between them.",
       },
       {
-        text: "The loop retains every popped item until it exits, so GC pauses fail the health check",
+        text: "The loop retains each popped item until it exits, so GC pauses fail the health check",
         whyTempting:
           "Nothing accumulates here: the queue is shrinking, and popped items become garbage immediately.",
       },
       {
-        text: "await only yields to the microtask queue, which fully drains before any I/O callback runs",
+        text: "`await` only yields to the microtask queue, which drains fully before every I/O callback",
       },
     ],
     correct: 3,
@@ -273,7 +273,7 @@ export const ASYNC_ENTRIES: BankEntry[] = [
     concept: "async-foreach",
     difficulty: "easy",
     prompt:
-      "You need `items.forEach(async i => await send(i))` to genuinely send one item at a time and to surface any failure to the caller. Which rewrite does that?",
+      "You need `items.forEach(async i => await send(i))` to send one item at a time and to surface any failure to the caller. Which rewrite does that?",
     options: [
       {
         text: "`await Promise.all(items.map(i => send(i)))`, which awaits every send before returning",
@@ -283,10 +283,10 @@ export const ASYNC_ENTRIES: BankEntry[] = [
       {
         text: "`items.forEach(async i => { try { await send(i) } catch (e) { throw e } })`",
         whyTempting:
-          "Rethrowing inside the callback just rejects a promise that forEach already discarded, so the throw goes nowhere.",
+          "Rethrowing inside the callback rejects a promise that forEach already discarded, so the throw goes nowhere.",
       },
       {
-        text: "`for (const i of items) { await send(i) }`, awaiting each send in turn",
+        text: "`for (const i of items) { await send(i) }`, awaiting each send before the next",
       },
       {
         text: "`items.map(async i => await send(i))`, since map keeps the promises instead of dropping them",
@@ -296,7 +296,7 @@ export const ASYNC_ENTRIES: BankEntry[] = [
     ],
     correct: 2,
     explanation:
-      "Only a `for…of` loop with await suspends the enclosing function between items and lets a rejection propagate normally. Promise.all is the right fix when you actually want concurrency.",
+      "Only a `for…of` loop with await suspends the enclosing function between items and lets a rejection propagate normally. Promise.all is the right fix when you want concurrency.",
   },
   {
     concept: "async-foreach",
@@ -307,10 +307,10 @@ export const ASYNC_ENTRIES: BankEntry[] = [
       {
         text: "Only the active users, because filter awaits the predicate before it decides",
         whyTempting:
-          "filter has no await in it; it simply coerces whatever the callback returned to a boolean.",
+          "filter has no await in it; it coerces whatever the callback returned to a boolean.",
       },
       {
-        text: "Every user: each call returns a pending promise, and every object is truthy",
+        text: "Every user, because each `isActive(u)` hands back a promise; promises are truthy",
       },
       {
         text: "An empty array, since a pending promise is not a boolean and filter rejects non-booleans",
@@ -334,7 +334,7 @@ export const ASYNC_ENTRIES: BankEntry[] = [
       "`await Promise.all(items.map(async i => { total += await score(i) }))` over 1,000 items. `total` comes out lower than the true sum, and the shortfall varies per run. Why?",
     options: [
       {
-        text: "`total` is read before each await suspends, so concurrent callbacks overwrite each other",
+        text: "`total` is read before each await suspends but written back after, so updates vanish",
       },
       {
         text: "score receives a stale index, because map's callback closes over the shared loop variable",
@@ -365,7 +365,7 @@ export const ASYNC_ENTRIES: BankEntry[] = [
       "A request handler calls the async `auditLog(event)` with no await and no catch. The audit service is down, so the call rejects. What happens on Node 18?",
     options: [
       {
-        text: "It is logged as an UnhandledPromiseRejectionWarning and the process keeps serving",
+        text: "It is logged as an UnhandledPromiseRejectionWarning and the process keeps on serving",
         whyTempting:
           "That was the Node 14 behaviour, and plenty of production wisdom still assumes it; since Node 15 the default is fatal.",
       },
@@ -375,12 +375,12 @@ export const ASYNC_ENTRIES: BankEntry[] = [
           "Promises are eager: the function body starts running the moment you call it, observed or not.",
       },
       {
-        text: "The surrounding try/catch catches it, so this one request fails with a 500",
+        text: "The surrounding `try`/`catch` catches it, so this one request fails with a 500",
         whyTempting:
           "try/catch only sees what you await; an unobserved rejection escapes the block completely.",
       },
       {
-        text: "The unhandled rejection terminates the process, dropping every in-flight request",
+        text: "The unhandled rejection terminates the process, and in-flight requests die with it",
       },
     ],
     correct: 3,
@@ -394,7 +394,7 @@ export const ASYNC_ENTRIES: BankEntry[] = [
       "A CLI fires `uploadMetrics()` without awaiting it and then falls off the end of `main`. The upload sometimes arrives and sometimes does not. What decides?",
     options: [
       {
-        text: "Whether the promise was created before or after the last await in main, which orders exit",
+        text: "Whether the promise was created before or after the last await in `main`, which orders exit",
         whyTempting:
           "Creation order is irrelevant; what matters is whether a live handle is still holding the loop open.",
       },
@@ -404,12 +404,12 @@ export const ASYNC_ENTRIES: BankEntry[] = [
           "Node does not drain pending promises at all; a promise is not something the event loop waits on.",
       },
       {
-        text: "Whether a socket is still open to hold the event loop alive; nothing awaits the promise",
+        text: "Whether a socket still holds the event loop open, because nothing awaits the promise",
       },
       {
-        text: "Whether stdout is a TTY, since Node only flushes writes asynchronously through a pipe",
+        text: "Whether stdout is a TTY, since Node always flushes writes asynchronously through a pipe",
         whyTempting:
-          "TTY versus pipe genuinely changes stdout flushing on exit, but it has nothing to do with an HTTP upload.",
+          "TTY versus pipe changes stdout flushing on exit, but it has nothing to do with an HTTP upload.",
       },
     ],
     correct: 2,
@@ -428,7 +428,7 @@ export const ASYNC_ENTRIES: BankEntry[] = [
           "It reads like fire-and-forget, but `.catch` attaches a rejection handler, which is precisely what makes it safe.",
       },
       {
-        text: "`void sync().finally(() => releaseLock())`",
+        text: "`void sync().finally(() => { releaseLock(); log.info('sync done') })`",
       },
       {
         text: "`sync().then(onOk, err => log.error({ err }, 'sync failed'))`",
@@ -462,7 +462,7 @@ export const ASYNC_ENTRIES: BankEntry[] = [
           "Calling an async function returns instantly; the rejection lands in a later microtask, after the block is gone.",
       },
       {
-        text: "Yes, but only once the promise settles, since a catch stays armed until then",
+        text: "Yes, but only once the promise settles, since a `catch` stays armed until then",
         whyTempting:
           "A catch block is not a subscription: it is finished the instant control leaves the try block.",
       },
@@ -474,7 +474,7 @@ export const ASYNC_ENTRIES: BankEntry[] = [
     ],
     correct: 0,
     explanation:
-      "try/catch is scoped to the synchronous execution of its block, and an unawaited call is just a value handed back immediately. Only `await` routes a rejection into the catch.",
+      "try/catch is scoped to the synchronous execution of its block, and an unawaited call hands back a value immediately. Only `await` routes a rejection into the catch.",
   },
   {
     concept: "try-catch-async",
@@ -483,7 +483,7 @@ export const ASYNC_ENTRIES: BankEntry[] = [
       "Inside an async function: `try { return fetchProfile(id) } catch { return CACHED }`. `fetchProfile` rejects. What does the caller receive?",
     options: [
       {
-        text: "CACHED, because returning a promise from a try block keeps it under that block's scope",
+        text: "CACHED, because returning a promise from a `try` block keeps it under that block's scope",
         whyTempting:
           "Returning does not extend the block; the try is over as soon as the promise value is returned.",
       },
@@ -498,7 +498,7 @@ export const ASYNC_ENTRIES: BankEntry[] = [
           "The catch never runs at all; one exit path cannot execute two returns from the same function.",
       },
       {
-        text: "A rejected promise: the catch never sees it, since nothing inside the try awaited",
+        text: "A rejected promise, but the catch never sees it: nothing inside the try awaited",
       },
     ],
     correct: 3,
@@ -517,15 +517,15 @@ export const ASYNC_ENTRIES: BankEntry[] = [
           "Closures capture variables, not exception handlers; the callback runs later on a brand-new stack.",
       },
       {
-        text: "In unhandledRejection, because throwing inside a callback rejects the enclosing promise",
+        text: "In `unhandledRejection`, because throwing inside a callback rejects the enclosing promise",
         whyTempting:
           "Nothing converted this callback into a promise, so a throw from a timer is an ordinary exception.",
       },
       {
-        text: "In uncaughtException, taking the process down: the try block returned 100ms earlier",
+        text: "In `uncaughtException`, taking the process down: the try block returned 100ms earlier",
       },
       {
-        text: "Nowhere: timer callbacks run detached, so Node discards whatever they throw",
+        text: "Nowhere: timer callbacks always run detached, so Node discards whatever they throw",
         whyTempting:
           "Node discards nothing: an uncaught exception in a timer callback crashes the process by default.",
       },

@@ -2,6 +2,7 @@ import pc from "picocolors";
 import type { RunResult } from "../core/types.js";
 import { scorecard, verdictLine, formatDuration } from "../core/scorecard.js";
 import type { ConceptTrend } from "../core/history.js";
+import { isUniversal } from "../core/bank.js";
 
 function rule(): string {
   return pc.dim("─".repeat(72));
@@ -88,6 +89,11 @@ export function renderReview(result: RunResult, runNumber: number, trends: Conce
         out.push(`     ${pc.dim(ev.text.slice(0, 62))}`);
       } else if (q.anchors.length) {
         out.push(`     ${pc.dim("↳ " + q.anchors.slice(0, 3).join(", "))}`);
+      } else if (isUniversal(q.concept)) {
+        // Say so rather than leave the row blank. "Why am I being asked this"
+        // is the question the evidence line exists to answer, and the honest
+        // answer here is that nothing in the diff triggered it.
+        out.push(`     ${pc.dim("↳ general engineering, not from a line in this diff")}`);
       }
       out.push("");
     }

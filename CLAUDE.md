@@ -14,6 +14,36 @@ is the way it is, which choices were already argued through and reversed, what
 state the project is in, and what to build next. This file covers day-to-day
 mechanics; that one covers the reasoning.
 
+## Who this is for
+
+**The person who has to trust code they did not write.** Two shapes of the same
+job:
+
+1. **The open-source maintainer.** Contributions arrive from strangers, more of
+   them AI-assisted every month, and the reviewer has no way to tell a
+   contributor who understands their patch from one who pasted it. Reviewing the
+   second kind costs more than writing it yourself. This is the buyer: they turn
+   on `certify`, mark `poppr/certified` required, and a merge now needs the
+   author to have demonstrated they can answer questions about their own diff.
+2. **The engineering lead.** Same problem inside a company, without the branch
+   protection. They want the team learning from what they ship rather than
+   accumulating code nobody on the team can explain at 3am.
+
+The secondary audience is the individual developer self-training on their own
+PRs, which is what `poppr practice` and the streak exist for. They are the ones
+who discover the tool. The maintainer is the one who deploys it.
+
+**What every design decision is measured against:** does this help someone
+decide whether to trust a patch, without insulting the person who wrote it?
+That is why the gate publishes completion rather than a score, why retakes stay
+private, and why the default is a comment rather than a check.
+
+**The thing they need in the first sixty seconds:** proof it costs them nothing
+to try. `npx @quokkapride/poppr` needs no key, no install and no config, and
+`poppr init` writes the workflow in one command. Anything that puts a setup step
+before the first play loses this person, because they are evaluating a tool for
+a repo they are responsible for, in a spare ten minutes.
+
 ## Status
 
 - Live on npm as `@quokkapride/poppr` v0.1.2
@@ -21,9 +51,10 @@ mechanics; that one covers the reasoning.
 - Browser version: https://quokkapride.github.io/PopPR/ (public repos, `web/`)
 - A GitHub Action comments on every PR with what it touches and a link to play
 - No users yet, no launch post yet
-- Next up: bank coverage beyond JS/TS, React, Python, Go and SQL. Open source
-  spans every language, so this is now the binding constraint rather than a
-  nice-to-have. See the roadmap in `HANDOFF.md`.
+- Bank covers JS/TS, React, Python, Go, Rust, Java, Ruby, C/C++ and SQL, plus a
+  universal tier for diffs the rules find little in. 328 questions, 108 concepts.
+- Measured on 487 held-out merged PRs from 28 repos: 60% of code PRs match at
+  least one concept, and every code PR gets at least 8 questions.
 
 ## Commands
 
@@ -35,6 +66,7 @@ node dist/cli/index.js --local          # try it against the current branch
 node dist/cli/index.js --local --smart  # same, but AI picks the concepts
 node dist/cli/index.js --detect         # what would it ask? no game, no clock
 node dist/cli/index.js <pr> --certify   # timed pass, then master every question
+node dist/cli/index.js --local --deep   # bank instantly, AI questions stream in
 npm run build:web                       # web/vendor/ for the browser version
 ```
 
@@ -50,7 +82,8 @@ src/core/          the library: no terminal code, no process.exit, no chalk
   concepts.ts      RULES: regex -> concept slug. Quick mode's whole brain.
   classify.ts      Smart mode: one small AI call -> which concepts matter here
   quiz.ts          Deep mode: AI writes questions about the actual code
-  bank.ts          serves curated questions, shuffles options
+  bank.ts          serves curated questions, shuffles options, tops up thin
+                   diffs from the universal pool
   mastery.ts       the certify loop: re-ask until every question is right
   certify.ts       completion comment, its parser, and the verify decision
   adaptive.ts      Staircase: 2-up/1-down difficulty
@@ -59,7 +92,9 @@ src/core/          the library: no terminal code, no process.exit, no chalk
   scorecard.ts     the shareable emoji grid
   providers/       claude-code | cursor-agent | api-key. One generate() each.
 
-src/bank/          the curated question bank, grouped by area
+src/bank/          the curated question bank, grouped by language
+  universal.ts     general engineering, never detected, used to top up a thin
+                   diff. See the comment at the top before adding to it.
 src/cli/           terminal only: game loop, review screen, commander wiring
   gh-event.ts      the GitHub Action's brain: comment, verify, set the status
   init.ts          `poppr init` writes a consumer's workflow file
@@ -73,11 +108,14 @@ directly, so anything that writes to stdout or reads `process.argv` belongs in
 
 ## The three modes, and why
 
-| mode | selection | questions | speed |
+| mode | selection | questions | time to first question |
 |---|---|---|---|
 | quick (default) | regex over added lines | curated bank | ~50ms |
 | `--smart` | one AI call picks concepts | curated bank | ~12s |
-| `--deep` | n/a | AI writes them per-PR | ~3min |
+| `--deep` | regex, then AI | bank first, AI streams in | ~50ms |
+
+`--deep` used to block for three minutes before the first question. It now seeds
+from the bank and streams, so it is quick mode that gets better while you play.
 
 Quick mode is the default **because a tool you have to configure before the
 first play is a tool nobody plays.** It needs no key, no network, no Claude Code.
@@ -90,8 +128,19 @@ correct answer longer and more specific than the distractors, and readers learn
 to pick the wordiest option without reading any code.
 
 This is not hypothetical. The first hand-written version of this bank had the
-correct answer as the longest option in **81%** of questions. It is now 3%,
-and `npm run audit:bank` fails the build above 35%.
+correct answer as the longest option in **81%** of questions.
+
+Fixing that produced the second form and the third. Correct-is-shortest reached
+**48%** while the first number read a healthy 3%, because writing distractors
+first and matching the correct answer to them pushes it terse. Fixing *that*
+produced a signature phrasing, `", not X"`, in 5 of 21 correct options in one
+file and 0 of 63 distractors: a perfect predictor.
+
+So the gate is general rather than a ban on three specific mistakes. It asks the
+only question that matters: **what would a player who never reads the question
+score?** Chance is 25%, the limit is 37.5%, and the bank sits at 26%. Every
+length check has a ceiling AND a floor, because being reliably un-extreme is as
+strong a tell as being reliably extreme.
 
 When adding questions: **write the three distractors first**, at full
 specificity, then write the correct answer to match their length.
@@ -104,9 +153,27 @@ specificity, then write the correct answer to match their length.
 2. Add the entry to the right file in `src/bank/`.
 3. `npm test`.
 
+The audit enforces both halves of that pairing. A rule with no questions is the
+mirror failure and fails the build too: it names a concept on the review screen
+and has nothing to ask about it.
+
 Every wrong option needs to be a real misconception someone holds, and
 `whyTempting` should name it. That field is what turns a wrong answer into a
 lesson on the review screen.
+
+## Adding a detection rule
+
+Do not write the regex from intuition. Every rule in `concepts.ts` carries a
+measured hit rate in a comment above it, and the ones that are not there were
+measured and rejected: `select!` fires on 0% of merged tokio PRs, and endianness
+on 0.1% of Rust files.
+
+Measure on repos you did not design the rule from. The gap is 15 to 20 points,
+every time. The corpora and harnesses live in the scratchpad, and the shape is:
+pull merged PRs with `gh api`, apply the same added-line and comment filters
+detection uses, then report the share of PRs that fire and how many previously
+dark PRs the rule rescues. A rule below roughly 5% of a language's PRs does not
+pay for the question-writing it obliges.
 
 ## Prose style
 
@@ -118,11 +185,21 @@ contrasts.
 
 ## Known rough edges
 
-- `--deep` takes ~3 minutes cold even with three parallel batches. The batches
-  stream into the live pool so play starts after the first, but this needs real
-  work before it is the mode anyone reaches for daily.
-- The bank covers JS/TS, React, Python, Go and SQL. Rust and Java PRs come up
-  empty in quick mode.
+- `--deep` generation still takes 2 to 4 minutes, but it no longer blocks: the
+  run is seeded from the curated bank in milliseconds and the written-for-you
+  questions join the live pool as each batch lands. On the default 180-second
+  clock they often arrive too late, and the review screen says so. A missing AI
+  backend now costs you the deep questions rather than the run.
+- Deep-mode question quality is NOT gated by `npm test`, because it needs a live
+  model. `scratchpad/deep-test.mjs` is the harness: it runs generation end to
+  end and applies the same length and structure audits the bank gets. Run it
+  after touching any prompt in `quiz.ts`. It caught the correct-is-shortest bug
+  at 53% in the generated questions, which is the same rot the bank had.
+- C/C++ is the weakest language at 47% of code PRs, and half of what fires on it
+  is generic. C's bugs live half in the language and half in the specific data
+  structure being touched, and the second half needs `--deep`.
+- Detection rates measured on the corpus a rule was designed from run 15 to 20
+  points above the same rule on held-out repos. Quote the held-out number.
 - `concepts.ts` regexes are loose by design and do produce false positives.
   That is what `--smart` exists to fix, not something to solve with more regex.
 

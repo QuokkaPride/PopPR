@@ -50,6 +50,9 @@ export function verdictLine(result: RunResult): string {
   if (pct >= 0.9) return "You could defend every line of this in review.";
   if (pct >= 0.7) return "Solid, with a couple of soft spots worth a second look.";
   if (pct >= 0.5) return "You can describe the change but not its failure modes.";
-  if (pct >= 0.3) return "How much of this did you read before merging?";
-  return "You merged this. Your reviewer will ask about it.";
+  if (pct >= 0.3) return "More of this was unfamiliar than it looked.";
+  // Says nothing about what anyone else will do. Predicting that a reviewer
+  // will ask is a promise the tool cannot keep, and being wrong about it is
+  // how a line like this stops landing.
+  return "Worth reading this one properly before it goes further.";
 }
