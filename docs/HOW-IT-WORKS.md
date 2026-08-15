@@ -3,7 +3,7 @@
 The detail behind the [README](../README.md), for anyone deciding whether to
 trust this on a repo they are responsible for.
 
-## Why the questions are hand-written
+## Why the questions are curated rather than generated
 
 A model can write a question about your diff, and `--deep` has one do exactly
 that. The default mode does not, for three reasons:
@@ -68,7 +68,7 @@ So `npm test` gates on the general question rather than three specific bans:
   correct-is-longest  23%   (limit 35%, floor 10%, chance 25%)
   correct-is-shortest 11%   (limit 35%, floor 10%)
   blind strategy      24%   (limit 37.5%, chance 25%)
-  length rank         #1 24%  #2 36%  #3 29%  #4 11%   (uniform is 25% each)
+  length rank         #1 24%  #2 37%  #3 28%  #4 12%   (uniform is 25% each)
 
   ✓ bank is healthy
 ```
@@ -101,6 +101,35 @@ is not trying to let you ace it.
 Explanations wait for the review screen. Reading a paragraph while your clock
 ticks kills the flow the game just built, so a run gives you a tick or a cross
 and nothing else.
+
+## What the required check actually is
+
+The Action posts a GitHub **commit status** named `poppr/quiz-passed`. It has two
+states and never a third:
+
+- **pending**, from the moment the PR opens until the author has answered every
+  question about the diff correctly and posted the completion comment
+- **success**, once they have
+
+There is no failure state. A wrong answer re-queues the question rather than
+ending anything.
+
+A status on its own blocks nothing. GitHub only enforces it once you add
+`poppr/quiz-passed` to a branch protection rule or ruleset, which is a separate
+decision you make in your repo settings. Until then the check is informational.
+
+Two behaviours worth knowing before you make it required:
+
+- **A PR with nothing to quiz passes on its own.** A docs or lockfile change
+  detects no concepts, so the status goes green immediately. Without that, a
+  required check would block every typo fix forever, and the first maintainer to
+  hit that turns the whole thing off.
+- **A push resets it to pending.** The completion comment names the commit it was
+  about, so a new commit makes the old proof stale. This is the rule GitHub
+  applies to review approvals, for the same reason.
+
+Only the PR author can turn the check green. A completion comment from anyone
+else is ignored.
 
 ## What the quiz does and does not prove
 

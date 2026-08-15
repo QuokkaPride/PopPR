@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.3.2
+
+**The README now says that `--require` does not block a merge on its own.** It
+posts a check that sits pending until the quiz is passed, and GitHub ignores
+pending checks until you add the context to a branch protection rule. That
+second step was one clause before and is now four numbered steps with a link to
+GitHub's own guide, plus the gotcha that costs people twenty minutes: the search
+box on that screen only lists checks it has already seen, so open one PR first.
+`poppr init` prints the same warning.
+
+**`docs/HOW-IT-WORKS.md` gains a full account of the check**: the two states it
+has, the absence of a third, what happens on a push, and why a docs-only PR goes
+green on its own.
+
+Also trims the README further: no regex vocabulary in the four-step summary, and
+the modes table says what it means.
+
 ## 0.3.1
 
 **Two modes rather than three.** `--smart` and `--deep` were both "the AI one"

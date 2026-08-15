@@ -127,6 +127,13 @@ export async function runInit(opts: { certify?: boolean; force?: boolean }): Pro
   console.log("    4. Require status checks to pass");
   console.log(`    5. add ${pc.bold(STATUS_CONTEXT)}`);
   console.log("");
+  // The search box on that screen only lists checks GitHub has seen in the
+  // last week, so a fresh install finds nothing there and the maintainer
+  // concludes the check does not exist.
+  console.log(
+    pc.dim("  Open one PR first. That box only lists checks that have already run."),
+  );
+  console.log("");
   console.log(
     pc.dim("  Until it is marked required the check is informational: it reports, and"),
   );
