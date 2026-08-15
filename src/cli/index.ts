@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import pc from "picocolors";
 import { readDiff, findCallSites } from "../core/diff.js";
 import { findRecentPr, repoName, hasGh } from "../core/pr.js";
@@ -41,17 +41,17 @@ program.enablePositionalOptions();
 
 program
   .name("poppr")
-  .description("Pop quiz for the pull request you just shipped.")
+  .description("Understand your own AI slop. A quiz on the concepts in your PR.")
   .argument("[pr]", "PR number or URL. Defaults to your most recent PR.")
   .option("--local", "quiz on the local branch diff instead of a GitHub PR")
   .option("--base <ref>", "base ref for --local (default: auto-detected)")
-  .option(
-    "-s, --smart",
-    "let AI pick which concepts matter in your diff, then quiz from the bank (~12s)",
-  )
+  // Folded into --deep, which now does the concept classification too. Kept as a
+  // working flag and dropped from help, because two AI modes nobody could tell
+  // apart was the problem.
+  .addOption(new Option("-s, --smart", "deprecated: use --deep").hideHelp())
   .option(
     "-d, --deep",
-    "quiz on YOUR code specifically, written fresh for this PR (needs AI, ~3min)",
+    "add questions an AI writes about your specific code (starts instantly, they stream in)",
   )
   .option("-t, --time <seconds>", "how long the run lasts", "180")
   .option(
@@ -78,9 +78,15 @@ program
 program
   .command("init")
   .description("write the GitHub Action workflow that comments on every PR")
-  .option("--certify", "ask contributors to certify, and report the poppr/certified check")
+  .option("--require", "require a passing quiz before merge, via the poppr/quiz-passed check")
+  // The original spelling. Kept working because a workflow file in someone's
+  // repo already says `certify: true`, and breaking that to improve a word is
+  // not a trade worth making.
+  .option("--certify", "alias for --require")
   .option("--force", "overwrite an existing workflow file")
-  .action((opts: { certify?: boolean; force?: boolean }) => runInit(opts));
+  .action((opts: { require?: boolean; certify?: boolean; force?: boolean }) =>
+    runInit({ certify: opts.require || opts.certify, force: opts.force }),
+  );
 
 // Hidden because it is the Action's own entry point: it reads the event off
 // GITHUB_EVENT_PATH and does nothing recognisable from a terminal.
@@ -191,6 +197,26 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
 
       if (backend) {
       spin.update(`Reading your code  ${pc.dim(`(${backend.note})`)}`);
+
+      // Deep mode absorbed smart mode. They were separate flags and nobody could
+      // tell them apart, which is a product problem rather than a docs one: one
+      // asked a model WHICH bank concepts matter, the other asked it to WRITE
+      // questions, and both were spelled "the AI one". Now the classify call
+      // runs alongside generation and its concepts widen the seeded pool the
+      // moment it lands, roughly twelve seconds in, well before the written-for
+      // -you questions arrive. `--smart` still works and is no longer
+      // advertised.
+      void classifyConcepts(ctx, backend.provider)
+        .then((classified) => {
+          if (!classified.length) return;
+          const known = new Set(staircase.concepts);
+          const fresh = classified.filter((c) => !known.has(c.concept));
+          if (fresh.length) {
+            staircase.add(bankQuestions(fresh, 8, { codeFiles: codeFiles(ctx) }));
+          }
+        })
+        .catch(() => {});
+
       generation = generateQuizStreaming(ctx, backend.provider, {
         reviewConcepts: review,
         onBatch(batch) {

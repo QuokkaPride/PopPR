@@ -40,11 +40,11 @@ test("certifyComment renders exactly the comment a maintainer will read", () => 
   // it should require someone to say so here on purpose.
   const expected = [
     `<!-- poppr-certify v1 sha=${SHA} questions=2 -->`,
-    "**PopPR** · certified on `0123456`",
+    "**PopPR** · quiz passed on `0123456`",
     "",
     "All 2 questions on this diff answered correctly: `promise-all`, `usememo`.",
     "",
-    "<sub>Self-certified with [PopPR](https://github.com/QuokkaPride/PopPR). It proves the ritual happened, not that nobody helped.</sub>",
+    "<sub>Self-reported with [PopPR](https://github.com/QuokkaPride/PopPR). It shows the author worked through every question on this diff, and cannot show they did it unaided.</sub>",
   ].join("\n");
 
   assert.equal(
@@ -220,7 +220,7 @@ test("the hosted app and status context are the ones the docs and branch protect
   // Both are copied by hand into README instructions and into repo settings, so
   // a rename here is a silent break in someone else's branch protection rule.
   assert.equal(WEB_APP, "https://quokkapride.github.io/PopPR/");
-  assert.equal(STATUS_CONTEXT, "poppr/certified");
+  assert.equal(STATUS_CONTEXT, "poppr/quiz-passed");
 });
 
 // ── hostile input ──────────────────────────────────────────────────────────

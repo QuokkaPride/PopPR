@@ -1,7 +1,7 @@
 {
   "name": "@quokkapride/poppr",
-  "version": "0.3.0",
-  "description": "Does the contributor who opened this PR understand it? PopPR asks them, on their own diff, and posts the answer where you review.",
+  "version": "0.3.1",
+  "description": "Understand your own AI slop. A three-minute quiz on the engineering concepts in your PR, generated locally from your diff. Optionally required before merge.",
   "keywords": [
     "pull-request",
     "code-review",

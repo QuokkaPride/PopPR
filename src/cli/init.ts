@@ -112,13 +112,13 @@ export async function runInit(opts: { certify?: boolean; force?: boolean }): Pro
 
   if (!opts.certify) {
     console.log(
-      pc.dim("  To ask contributors to certify their own diff: `poppr init --certify --force`."),
+      pc.dim("  To require a passing quiz before merge: `poppr init --require --force`."),
     );
     console.log("");
     return;
   }
 
-  console.log(`  Certification is on, so the workflow reports a ${pc.bold(STATUS_CONTEXT)} check.`);
+  console.log(`  The quiz is on, so the workflow reports a ${pc.bold(STATUS_CONTEXT)} check.`);
   console.log("  To make that check a hard gate, in your browser:");
   console.log("");
   console.log("    1. Settings");

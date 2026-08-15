@@ -34,7 +34,7 @@ export const MAX_CERTIFY_QUESTIONS = 25;
 export const ACTION_REF = "QuokkaPride/PopPR@v1";
 
 /** The commit status a maintainer marks required to make certify a hard gate. */
-export const STATUS_CONTEXT = "poppr/certified";
+export const STATUS_CONTEXT = "poppr/quiz-passed";
 
 /** Marker on the detect comment, so it is edited in place instead of repeated. */
 export const DETECT_MARKER = "<!-- poppr-scorecard -->";
@@ -62,13 +62,13 @@ export function certifyComment(opts: {
   const n = opts.questions.length;
   return [
     `<!-- poppr-certify v1 sha=${opts.headSha} questions=${n} -->`,
-    `**PopPR** · certified on \`${opts.headSha.slice(0, 7)}\``,
+    `**PopPR** · quiz passed on \`${opts.headSha.slice(0, 7)}\``,
     "",
     `All ${n} question${n === 1 ? "" : "s"} on this diff answered correctly: ` +
       `${concepts.map((c) => `\`${c}\``).join(", ")}.`,
     "",
-    "<sub>Self-certified with [PopPR](https://github.com/QuokkaPride/PopPR). " +
-      "It proves the ritual happened, not that nobody helped.</sub>",
+    "<sub>Self-reported with [PopPR](https://github.com/QuokkaPride/PopPR). " +
+      "It shows the author worked through every question on this diff, and cannot show they did it unaided.</sub>",
   ].join("\n");
 }
 

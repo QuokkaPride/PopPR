@@ -1,10 +1,12 @@
 # LinkedIn kit
 
 Everything for one LinkedIn launch. Pick a post, edit it, paste it.
+In a hurry? Post 0 is thirty seconds.
 
 ## How to post it
 
-1. **Pick one post** from the three below. They are alternatives, not a sequence.
+1. **Pick one post** from the four below. They are alternatives, not a sequence.
+   Post 0 is the fast one if you want this out today.
 2. **No link in the body.** LinkedIn suppresses reach on posts with an outbound
    link. Put it in the first comment and say you have.
 3. **Attach one image.** `demo/poppr.gif` or `launch/assets/hosted-brief.png`.
@@ -25,6 +27,38 @@ All measured, all reproducible from the repo:
 - Correct-is-shortest hit 48% after the first fix
 - A blind player scored 45%, now scores 24%, chance is 25%
 - `--deep` time to first question: 228 seconds, now about 2
+
+---
+
+# Post 0: just the link
+
+What you asked for. Post this, put the link in the first comment, done in
+thirty seconds. Use it if you want the launch out today and the longer posts
+later in the week.
+
+```
+Understand your own AI slop.
+
+Your agent wrote the PR. You shipped it. Can you explain it?
+
+I built PopPR: a three-minute quiz on the engineering concepts in your own diff. It reads the PR, finds the concepts in your changed lines, and asks you about those exact lines. Runs on your machine, so your code never leaves it.
+
+I have been using it on my own PRs and it is genuinely fun. It has also caught me twice.
+
+The part I would actually pitch to a team lead: you can make passing it a required check before a PR merges. Nobody can fail, wrong answers just come back until they are right, and no score is ever published.
+
+Free, MIT, one command.
+```
+
+**First comment:**
+
+```
+https://github.com/QuokkaPride/PopPR
+
+npx @quokkapride/poppr
+
+Add it to a repo: npx @quokkapride/poppr init --require
+```
 
 ---
 
