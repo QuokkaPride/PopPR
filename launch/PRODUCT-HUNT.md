@@ -96,12 +96,14 @@ Tell me where the questions are wrong. That is the part I can only get from othe
 Product Hunt shows the first image everywhere, so it carries the whole pitch.
 
 1. **`demo/poppr.gif`** (already in the repo). A real run: question, answer, review screen.
-2. **The PR comment.** Screenshot a real one showing the concept-to-line table. This is the maintainer's "oh, I see" moment and it is the one asset that is missing.
-3. **The certify check.** Screenshot `poppr/certified` green in the checks list on a PR.
-4. **`poppr --stats`.** The concept mastery bars over time.
-5. **The audit output.** `npm test` showing the blind-strategy number. This is the credibility shot for a technical audience.
+2. **`launch/assets/hosted-brief.png`** (captured). The brief screen on a real PR, reading "30 concepts in this diff · 20 questions". Good second slot because it is proof rather than a claim.
+3. **The PR comment.** Screenshot a real one showing the concept-to-line table. The maintainer's "oh, I see" moment, and still to capture.
+4. **The certify check.** Screenshot `poppr/certified` green in the checks list on a PR.
+5. **`launch/assets/audit-output.txt`** (captured). Render it as a terminal image. This is the credibility shot for a technical audience.
 
-To capture 2 and 3, open any merged PR on the repo that has a PopPR comment on it and screenshot at 2x.
+Still needed: 3 and 4. Open the next PR on the repo, wait for the Action to
+comment, and screenshot at 2x. PR #3's comment is from the 0.2 bank and reads
+"2 questions", so do not use it: the whole point is that 0.3 finds 20.
 
 ---
 

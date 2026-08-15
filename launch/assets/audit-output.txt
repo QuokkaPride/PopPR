@@ -1,0 +1,13 @@
+  poppr bank audit · 328 questions, 108 concepts
+
+  correct-is-longest  23%   (limit 35%, random baseline 25%)
+  correct-is-shortest 11%   (limit 35%, random baseline 25%)
+  length ratio        1.03   (band 0.9 to 1.1)
+  blind strategy      25%   (limit 37.5%, chance 25%)
+  length rank         #1 24%  #2 36%  #3 29%  #4 11%   (uniform is 25% each)
+    leading "Nothing"    10% right when it stands alone  (40 questions)
+    ", and " clause      39% right when it stands alone  (110 questions)
+    leading "Only"       13% right when it stands alone  (15 questions)
+  letter spread       A 20%  B 24%  C 29%  D 27%
+
+  ✓ bank is healthy
