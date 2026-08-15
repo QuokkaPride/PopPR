@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.3.1
+
+**Two modes rather than three.** `--smart` and `--deep` were both "the AI one"
+and nobody could tell them apart. `--deep` now does the concept classification
+as well: it seeds instantly from the curated bank, widens the pool when
+classification lands around twelve seconds in, then streams the written-for-you
+questions. `--smart` still works and is no longer advertised.
+
+**`poppr/certified` is now `poppr/quiz-passed`.** The old name did not say what
+it meant, and it is the string a maintainer types into branch protection.
+`poppr init --require` is the new spelling of `--certify`, which keeps working
+because a workflow file in someone's repo already says `certify: true`.
+
+**A README you can scan in two seconds.** It now leads with what the tool is,
+then what it literally does in four steps, then where your code goes, then the
+two ways to put it on a repo. The coverage measurement, the anti-cheating audit,
+the scoring model and the fork-safety argument moved to `docs/HOW-IT-WORKS.md`.
+
 ## 0.3.0
 
 **Eight languages, and a real answer for small PRs.** The bank went from 145
