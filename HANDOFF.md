@@ -36,10 +36,37 @@ a week. The real moment is the five minutes *after* shipping, when "shit, now I
 have to understand this" hits. PopPR is a snack, not a checkpoint. Anything that
 makes it feel like a gate is a regression.
 
-This includes the planned GitHub Action. The score posts as a comment the
-reviewer can see, never as a required check that blocks the merge. Teams that
-want it strict can mark the check required themselves, which keeps that choice
-theirs rather than the default.
+**1a. Amended Aug 2026: a maintainer may impose a gate on contributors.**
+The rule above was written for the developer quizzing themselves on their own
+PR, and for that person it still holds exactly. What changed is who the buyer
+is. An open-source maintainer reviewing a contribution from a stranger is not
+the same transaction: decision 1 protects you from friction on your own
+shipping, while a maintainer is deciding what enters a codebase they will
+maintain for years. They are allowed to ask for proof of comprehension, and
+"AI wrote this and neither of us understands it" is the failure they are
+guarding against.
+
+So `certify` exists, with these properties, each of which is load-bearing:
+
+- **Opt-in, default off.** A repo without `certify: true` behaves exactly as
+  before: a comment that gates nothing.
+- **You cannot fail it.** The timed pass is scored and costs you nothing;
+  afterwards the mastery loop asks whatever you have not answered correctly
+  until you have. There is no threshold and no attempt limit, so the only exit
+  is understanding.
+- **Completion is published, nothing else.** No score, no emoji grid (it would
+  leak which questions were missed on the timed pass), no retake count. A
+  maintainer learning that a contributor needed six tries turns a learning tool
+  into a humiliation.
+- **The hard gate is the maintainer's own act.** PopPR only ever posts a
+  `poppr/certified` commit status. It blocks a merge only if the maintainer
+  marks that context required in branch protection, which keeps the decision
+  where it belongs.
+- **AI-assisted answers are accepted.** Verification would mean grading on a
+  server, which means accounts and a backend and a bill, for a project whose
+  economics depend on having none. The comment says so in its own footer: it
+  proves the ritual happened, not that nobody helped. The value is a
+  contributor who read their own diff before a reviewer had to.
 
 **2. Multiple choice, not free text.**
 Beyond being lower-friction, MCQ moves all AI work to a single upfront call.

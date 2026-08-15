@@ -1,11 +1,18 @@
 import readline from "node:readline";
 import pc from "picocolors";
 import type { Answered, Question } from "../core/types.js";
+import type { MasteryLoop } from "../core/mastery.js";
 
 const KEYS = ["a", "b", "c", "d", "e", "f"];
 
 /**
- * The second pass over what you just missed.
+ * The untimed screens, and the two things that drive them.
+ *
+ * `retryMissed` is the optional second pass after a scored run; `runMasteryLoop`
+ * is the compulsory one that certification hangs off. They differ only in the
+ * header and in who decides when to stop, so they share one renderer: two copies
+ * of a question screen drift, and the drift always lands on the screen fewer
+ * people see.
  *
  * Reading an explanation is recognition; answering the question again is
  * retrieval, and retrieval is what actually encodes. Without this, a miss ends
@@ -19,34 +26,32 @@ const KEYS = ["a", "b", "c", "d", "e", "f"];
  *   - No points. Scoring a retry would make the scorecard a measure of
  *     persistence rather than comprehension, and the scorecard is the thing
  *     people paste in Slack.
- *   - Opt-in on one keypress. PopPR is a snack. Anything that makes finishing
- *     feel mandatory turns it back into the gate we deleted.
  */
 export async function retryMissed(misses: Answered[]): Promise<number> {
   if (!misses.length || !process.stdin.isTTY) return 0;
 
-  const wanted = await confirm(misses.length);
+  // Opt-in on one keypress. PopPR is a snack, and anything that makes finishing
+  // feel mandatory turns it back into the gate we deleted.
+  const wanted = await confirmKey(
+    "r",
+    `  ${pc.bold(pc.cyan("r"))}${pc.dim(` to retry the ${misses.length} you missed, any other key to finish`)}`,
+  );
   if (!wanted) return 0;
 
-  readline.emitKeypressEvents(process.stdin);
-  const wasRaw = process.stdin.isRaw;
-  process.stdin.setRawMode(true);
-  process.stdout.write("\x1b[?25l");
+  const restore = rawKeys();
 
   let correct = 0;
   try {
     for (let i = 0; i < misses.length; i++) {
       const q = misses[i].question;
-      const chosen = await askUntimed(q, i + 1, misses.length);
+      const chosen = await askUntimed(q, `second pass  ${i + 1}/${misses.length}`);
       if (chosen === null) break; // ctrl-c
       const right = chosen === q.correct;
       if (right) correct++;
       await reveal(q, chosen, right);
     }
   } finally {
-    process.stdout.write("\x1b[?25h");
-    process.stdin.setRawMode(wasRaw ?? false);
-    process.stdin.pause();
+    restore();
   }
 
   process.stdout.write("\x1b[H\x1b[2J");
@@ -57,30 +62,90 @@ export async function retryMissed(misses: Answered[]): Promise<number> {
   return correct;
 }
 
+/**
+ * Certification's untimed tail: ask what is not yet right, until nothing is.
+ *
+ * Returns true only when the loop is genuinely finished, because the caller
+ * turns that boolean into a public claim. Ctrl-c returns false with the question
+ * unrecorded, so quitting halfway certifies nothing and costs nothing either.
+ *
+ * The header is the only progress signal on screen, and it counts what is left
+ * rather than what has been done. "3 left" is a shrinking number you can finish;
+ * "attempt 11" is a scoreboard of your own struggling, and mastery.ts throws
+ * that count away for the same reason.
+ */
+export async function runMasteryLoop(loop: MasteryLoop): Promise<boolean> {
+  // A clean timed run leaves nothing to master. Say nothing, draw nothing.
+  if (loop.done) return true;
+  if (!process.stdin.isTTY) return false;
+
+  const restore = rawKeys();
+  try {
+    for (;;) {
+      const question = loop.next();
+      if (!question) break;
+      // Read progress after next(): it is the call that rolls the pass over.
+      const { pass, remaining } = loop.progress;
+      const chosen = await askUntimed(
+        question,
+        `mastery · pass ${pass} · ${remaining} left`,
+        "no clock, no score, tries are never published  ·  ctrl-c to stop",
+      );
+      if (chosen === null) return false; // ctrl-c, and the question goes back
+      const right = chosen === question.correct;
+      loop.record(right);
+      await reveal(question, chosen, right);
+    }
+  } finally {
+    restore();
+  }
+
+  return loop.done;
+}
+
 function closingLine(correct: number, total: number): string {
   if (correct === total) return "All of them. These still come back on a future PR.";
   if (correct === 0) return "None of them yet. They come back on a future PR.";
   return `${total - correct} still shaky. Those come back on a future PR.`;
 }
 
-/** One keypress, so declining costs nothing. */
-function confirm(count: number): Promise<boolean> {
+/**
+ * Raw mode, hidden cursor, and the restore both loops need in a `finally`.
+ *
+ * `isRaw` is captured rather than assumed false: the game may already have put
+ * the terminal in raw mode, and blindly clearing it strands the shell.
+ */
+function rawKeys(): () => void {
+  readline.emitKeypressEvents(process.stdin);
+  const wasRaw = process.stdin.isRaw;
+  process.stdin.setRawMode(true);
+  process.stdout.write("\x1b[?25l");
+  return () => {
+    process.stdout.write("\x1b[?25h");
+    process.stdin.setRawMode(wasRaw ?? false);
+    process.stdin.pause();
+  };
+}
+
+/**
+ * One keypress, so declining costs nothing. Resolves true only for `key`, and
+ * false for ctrl-c, because a prompt you cannot back out of is a trap.
+ */
+export function confirmKey(key: string, prompt: string): Promise<boolean> {
   return new Promise((resolve) => {
     readline.emitKeypressEvents(process.stdin);
     const wasRaw = process.stdin.isRaw;
     process.stdin.setRawMode(true);
 
-    console.log(
-      `  ${pc.bold(pc.cyan("r"))}${pc.dim(` to retry the ${count} you missed, any other key to finish`)}`,
-    );
+    console.log(prompt);
     console.log("");
 
-    const onKey = (_s: string, key: { name?: string; ctrl?: boolean }) => {
+    const onKey = (_s: string, pressed: { name?: string; ctrl?: boolean }) => {
       process.stdin.off("keypress", onKey);
       process.stdin.setRawMode(wasRaw ?? false);
       process.stdin.pause();
-      if (key?.ctrl && key.name === "c") return resolve(false);
-      resolve(key?.name === "r");
+      if (pressed?.ctrl && pressed.name === "c") return resolve(false);
+      resolve(pressed?.name === key);
     };
 
     process.stdin.on("keypress", onKey);
@@ -88,14 +153,19 @@ function confirm(count: number): Promise<boolean> {
   });
 }
 
-function askUntimed(question: Question, n: number, total: number): Promise<string | null> {
+/** The one untimed question screen. Null means ctrl-c. */
+function askUntimed(
+  question: Question,
+  header: string,
+  footer = "no clock, no points  ·  ctrl-c to stop",
+): Promise<string | null> {
   return new Promise((resolve) => {
     const valid = question.options.map((o) => o.key.toLowerCase());
 
     process.stdout.write("\x1b[H\x1b[2J");
     const lines = [
       "",
-      `  ${pc.bold(pc.magenta("PopPR"))}  ${pc.dim(`second pass  ${n}/${total}`)}`,
+      `  ${pc.bold(pc.magenta("PopPR"))}  ${pc.dim(header)}`,
       "",
       `  ${pc.dim(question.concept)}`,
       "",
@@ -103,7 +173,7 @@ function askUntimed(question: Question, n: number, total: number): Promise<strin
       "",
       ...question.options.map((o) => `    ${pc.bold(pc.cyan(o.key))}   ${o.text}`),
       "",
-      `  ${pc.dim("no clock, no points  ·  ctrl-c to stop")}`,
+      `  ${pc.dim(footer)}`,
     ];
     process.stdout.write(lines.join("\n") + "\n");
 
@@ -125,7 +195,7 @@ function askUntimed(question: Question, n: number, total: number): Promise<strin
 
 /**
  * The explanation shows here rather than at the end. During the timed run
- * holding it back protects the flow state; on the second pass there is no flow
+ * holding it back protects the flow state; on an untimed pass there is no flow
  * to protect and the explanation is the entire point.
  */
 function reveal(question: Question, chosen: string, correct: boolean): Promise<void> {

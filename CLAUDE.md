@@ -1,7 +1,13 @@
 # PopPR: working notes for Claude Code
 
-Pop quiz for your pull request. Runs **after** you ship, not before. It is not a
-gate, and any change that makes it feel like one is wrong.
+Pop quiz for your pull request. Runs **after** you ship, not before.
+
+Quizzing yourself is never a gate, and any change that makes it feel like one is
+wrong. The single exception is `certify`, which a maintainer opts into for their
+own repo: contributors must answer every question correctly before the
+`poppr/certified` check goes green. You cannot fail it, only completion is
+published, and it blocks a merge only if the maintainer marks that check
+required. See decision 1a in `HANDOFF.md` before touching any of it.
 
 **Read `HANDOFF.md` before making product decisions.** It records why the design
 is the way it is, which choices were already argued through and reversed, what
@@ -28,6 +34,7 @@ npm run audit:bank   # the quality gate on its own
 node dist/cli/index.js --local          # try it against the current branch
 node dist/cli/index.js --local --smart  # same, but AI picks the concepts
 node dist/cli/index.js --detect         # what would it ask? no game, no clock
+node dist/cli/index.js <pr> --certify   # timed pass, then master every question
 npm run build:web                       # web/vendor/ for the browser version
 ```
 
@@ -44,6 +51,8 @@ src/core/          the library: no terminal code, no process.exit, no chalk
   classify.ts      Smart mode: one small AI call -> which concepts matter here
   quiz.ts          Deep mode: AI writes questions about the actual code
   bank.ts          serves curated questions, shuffles options
+  mastery.ts       the certify loop: re-ask until every question is right
+  certify.ts       completion comment, its parser, and the verify decision
   adaptive.ts      Staircase: 2-up/1-down difficulty
   score.ts         difficulty x speed x combo
   history.ts       ~/.poppr/history.json, streaks, spaced repetition
@@ -52,6 +61,10 @@ src/core/          the library: no terminal code, no process.exit, no chalk
 
 src/bank/          the curated question bank, grouped by area
 src/cli/           terminal only: game loop, review screen, commander wiring
+  gh-event.ts      the GitHub Action's brain: comment, verify, set the status
+  init.ts          `poppr init` writes a consumer's workflow file
+action.yml         the composite action third parties use as QuokkaPride/PopPR@v1
+test/              node:test suites over dist/
 ```
 
 **Keep `core/` free of terminal concerns.** The VS Code extension will import it

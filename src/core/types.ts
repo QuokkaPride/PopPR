@@ -24,6 +24,24 @@ export interface Option {
   whyTempting?: string;
 }
 
+/**
+ * The line in YOUR diff that caused a question to be asked.
+ *
+ * Without this a bank question reads as trivia: correct, well written, and
+ * apparently unrelated to the change you just made. The concept tag alone does
+ * not close that gap, because "promise-all" does not tell you that it was the
+ * line you added in checkout.ts. Showing the line turns "why am I being asked
+ * this" into "oh, that line", which is the difference between a quiz and a
+ * review of your own work.
+ */
+export interface Evidence {
+  file: string;
+  /** 1-based line in the file after the change, when the hunk header gives it. */
+  line?: number;
+  /** The added line itself, trimmed. */
+  text: string;
+}
+
 export interface Question {
   id: string;
   difficulty: Difficulty;
@@ -41,6 +59,8 @@ export interface Question {
   explanation: string;
   /** Files this question is anchored to; shown after answering. */
   anchors: string[];
+  /** Lines in the diff that caused this concept to be picked. */
+  evidence?: Evidence[];
 }
 
 export interface Answered {
@@ -88,6 +108,12 @@ export interface PrContext {
   title?: string;
   body?: string;
   url?: string;
+  /**
+   * Full 40-hex head commit. Only set when the context came from a real PR,
+   * because certification binds to a commit: a completion comment is proof
+   * about one specific diff, and a push has to invalidate it.
+   */
+  headSha?: string;
   files: DiffFile[];
   /** Symbol -> files outside the diff that reference it. Powers blast-radius. */
   callSites?: Record<string, string[]>;

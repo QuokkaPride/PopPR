@@ -3,6 +3,8 @@ export * from "./diff.js";
 export * from "./quiz.js";
 export * from "./concepts.js";
 export * from "./bank.js";
+export * from "./mastery.js";
+export * from "./certify.js";
 export * from "./adaptive.js";
 export * from "./score.js";
 export * from "./scorecard.js";

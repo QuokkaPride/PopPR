@@ -148,13 +148,29 @@ export async function readDiff(opts: ReadDiffOptions = {}): Promise<PrContext> {
 async function readFromGh(pr: string, cwd: string, maxChars: number): Promise<PrContext> {
   const fullPatch = await tryRun("gh", ["pr", "diff", pr], cwd);
   if (fullPatch === null) {
+    // tryRun swallows the cause, and on a CI runner the advice below is always
+    // wrong: gh is preinstalled and the token comes from the workflow. Ask
+    // again without swallowing so a 403 from a missing `pull-requests`
+    // permission says so, instead of sending a maintainer to `gh auth login`.
+    let detail = "";
+    try {
+      await run("gh", ["pr", "diff", pr], cwd);
+    } catch (err) {
+      const e = err as { stderr?: string; code?: string };
+      if (e.code === "ENOENT") {
+        throw new Error(
+          `Could not read PR ${pr}. The GitHub CLI is not installed (\`gh\`).`,
+        );
+      }
+      detail = (e.stderr ?? "").trim();
+    }
     throw new Error(
-      `Could not read PR ${pr}. Make sure the GitHub CLI is installed and authenticated (\`gh auth login\`).`,
+      `Could not read PR ${pr}.${detail ? ` gh said: ${detail}` : ""}`.trim(),
     );
   }
   const metaRaw = await tryRun(
     "gh",
-    ["pr", "view", pr, "--json", "title,body,baseRefName,headRefName,number"],
+    ["pr", "view", pr, "--json", "title,body,baseRefName,headRefName,number,headRefOid,url"],
     cwd,
   );
   const meta = metaRaw ? JSON.parse(metaRaw) : {};
@@ -186,6 +202,9 @@ async function readFromGh(pr: string, cwd: string, maxChars: number): Promise<Pr
     head: meta.headRefName ?? "head",
     title: meta.title,
     body: meta.body,
+    url: meta.url,
+    // Certification binds to this commit, so a push has to invalidate it.
+    headSha: meta.headRefOid,
     files,
   };
 }
