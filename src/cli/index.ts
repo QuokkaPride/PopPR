@@ -372,13 +372,11 @@ async function certify(
   cwd: string,
 ): Promise<void> {
   const loop = new MasteryLoop(pool, result.answered);
-  // The loop redraws full frames over the review screen. Remember whether it is
-  // going to: a clean timed run has nothing to master and should keep its review
-  // on screen, and a run that played the loop should not read its comment under
-  // the last explanation.
-  const willDraw = !loop.done;
+  // The loop paints its full frames on the alternate screen, so it never lands
+  // on top of the review screen and there is nothing to clear away afterwards:
+  // the comment prints below the review, where it can be read next to the score
+  // that earned it.
   const finished = await runMasteryLoop(loop);
-  if (willDraw && process.stdout.isTTY) process.stdout.write("\x1b[H\x1b[2J");
 
   if (!finished) {
     console.log(pc.dim("\n  Stopped before every question was right, so nothing is certified."));

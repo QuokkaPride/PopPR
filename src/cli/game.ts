@@ -4,6 +4,7 @@ import { Staircase } from "../core/adaptive.js";
 import { liveValue, scoreAnswer } from "../core/score.js";
 import type { Answered, Question, RunResult } from "../core/types.js";
 import { formatDuration } from "../core/scorecard.js";
+import { draw, enterFullScreen, leaveFullScreen } from "./screen.js";
 
 const KEYS = ["a", "b", "c", "d", "e", "f"];
 
@@ -14,11 +15,6 @@ interface GameOptions {
   streak: number;
   /** True while more question batches are still being generated. */
   moreComing?: () => boolean;
-}
-
-/** Full-frame redraw. Simpler than diffing, and at 4fps nobody can tell. */
-function draw(lines: string[]): void {
-  process.stdout.write("\x1b[H\x1b[2J" + lines.join("\n") + "\n");
 }
 
 function bar(fraction: number, width = 24): string {
@@ -86,10 +82,10 @@ export async function runGame(
   readline.emitKeypressEvents(process.stdin);
   const wasRaw = process.stdin.isRaw;
   if (process.stdin.isTTY) process.stdin.setRawMode(true);
-  process.stdout.write("\x1b[?25l"); // hide cursor
+  enterFullScreen();
 
   const cleanup = () => {
-    process.stdout.write("\x1b[?25h"); // show cursor
+    leaveFullScreen();
     if (process.stdin.isTTY) process.stdin.setRawMode(wasRaw ?? false);
     process.stdin.pause();
   };
@@ -251,10 +247,13 @@ function askOne(
 
     const onKey = (
       _str: string,
-      key: { name?: string; ctrl?: boolean; sequence?: string },
+      key: { name?: string; ctrl?: boolean; meta?: boolean; sequence?: string },
     ) => {
       if (done) return;
       if (key?.ctrl && key.name === "c") return finish(null, true);
+      // readline reports ctrl-d as name "d", so without this a stray ctrl-d
+      // answers D and moves on.
+      if (key?.ctrl || key?.meta) return;
       const name = (key?.name ?? key?.sequence ?? "").toLowerCase();
       if (validKeys.includes(name)) {
         finish(question.options[KEYS.indexOf(name)]?.key ?? name.toUpperCase(), false);

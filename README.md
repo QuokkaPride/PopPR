@@ -38,40 +38,16 @@ The GitHub Action runs inside your CI and reads the diff through the GitHub API.
 
 ## Put it on your team's repo
 
-Both commands write `.github/workflows/poppr.yml`. Commit it and it runs on every PR.
-
-**Comment only.** PopPR posts the concepts it found and a link to play.
-
 ```bash
-npx @quokkapride/poppr init
+npx @quokkapride/poppr init            # comments on every PR
+npx @quokkapride/poppr init --require  # adds a poppr/quiz-passed check
 ```
 
-**With a check.** The author has to pass every question on their diff before the `poppr/quiz-passed` check goes green.
+Both write `.github/workflows/poppr.yml`. Commit it and it runs.
 
-```bash
-npx @quokkapride/poppr init --require
-```
+**`--require` does not block merges on its own.** It posts a check that stays pending until the author has answered every question about their diff correctly. To make GitHub enforce it: open one PR so the check runs once, then go to **Settings → Branches → Require status checks to pass** and add `poppr/quiz-passed`. ([GitHub's guide](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches#require-status-checks-before-merging))
 
-### Making the check block a merge
-
-`--require` on its own **does not stop anyone merging.** It posts a check that sits pending until the quiz is passed, and GitHub ignores pending checks unless you tell it not to. That second step is yours:
-
-1. Open one PR so the check runs at least once. GitHub only lists checks it has seen before.
-2. Go to **Settings → Branches → Add branch protection rule** (or **Settings → Rules → Rulesets**).
-3. Tick **Require status checks to pass before merging**.
-4. Search for `poppr/quiz-passed` and select it.
-
-[GitHub's guide to required status checks](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches#require-status-checks-before-merging)
-
-Now the merge button stays disabled until the author has answered every question correctly.
-
-### What the check means
-
-There are two states, pending and green. When it goes green, the author has answered every question about their diff correctly, and a comment on the PR says so. You can read that as: they have engaged with the change and learned something about it.
-
-Wrong answers are not held against anyone. They come back, untimed, until they are right, and the run itself is never scored in public.
-
-A PR with nothing to quiz, like a docs or lockfile change, goes green on its own. A new push resets the check to pending, the same way GitHub treats a stale review approval.
+The check has two states. Green means the author worked through every question, and a comment on the PR says so. Wrong answers come back untimed until they are right, and PopPR publishes no score. A docs-only PR goes green on its own, and a new push resets the check to pending.
 
 ## Two modes
 

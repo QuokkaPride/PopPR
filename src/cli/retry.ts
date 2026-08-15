@@ -2,6 +2,7 @@ import readline from "node:readline";
 import pc from "picocolors";
 import type { Answered, Question } from "../core/types.js";
 import type { MasteryLoop } from "../core/mastery.js";
+import { append, draw, enterFullScreen, leaveFullScreen } from "./screen.js";
 
 const KEYS = ["a", "b", "c", "d", "e", "f"];
 
@@ -54,7 +55,8 @@ export async function retryMissed(misses: Answered[]): Promise<number> {
     restore();
   }
 
-  process.stdout.write("\x1b[H\x1b[2J");
+  // No clear: restore() has already put the normal screen back, and the summary
+  // belongs under the review screen the run just printed there.
   console.log("");
   console.log(`  ${pc.bold(pc.magenta("PopPR"))}  ${pc.bold(`${correct}/${misses.length}`)} on the second pass`);
   console.log(`  ${pc.dim(closingLine(correct, misses.length))}`);
@@ -110,7 +112,8 @@ function closingLine(correct: number, total: number): string {
 }
 
 /**
- * Raw mode, hidden cursor, and the restore both loops need in a `finally`.
+ * Raw mode, the full-screen buffer, and the restore both loops need in a
+ * `finally`.
  *
  * `isRaw` is captured rather than assumed false: the game may already have put
  * the terminal in raw mode, and blindly clearing it strands the shell.
@@ -119,9 +122,9 @@ function rawKeys(): () => void {
   readline.emitKeypressEvents(process.stdin);
   const wasRaw = process.stdin.isRaw;
   process.stdin.setRawMode(true);
-  process.stdout.write("\x1b[?25l");
+  enterFullScreen();
   return () => {
-    process.stdout.write("\x1b[?25h");
+    leaveFullScreen();
     process.stdin.setRawMode(wasRaw ?? false);
     process.stdin.pause();
   };
@@ -162,8 +165,7 @@ function askUntimed(
   return new Promise((resolve) => {
     const valid = question.options.map((o) => o.key.toLowerCase());
 
-    process.stdout.write("\x1b[H\x1b[2J");
-    const lines = [
+    draw([
       "",
       `  ${pc.bold(pc.magenta("PopPR"))}  ${pc.dim(header)}`,
       "",
@@ -174,14 +176,19 @@ function askUntimed(
       ...question.options.map((o) => `    ${pc.bold(pc.cyan(o.key))}   ${o.text}`),
       "",
       `  ${pc.dim(footer)}`,
-    ];
-    process.stdout.write(lines.join("\n") + "\n");
+    ]);
 
-    const onKey = (_s: string, key: { name?: string; ctrl?: boolean; sequence?: string }) => {
+    const onKey = (
+      _s: string,
+      key: { name?: string; ctrl?: boolean; meta?: boolean; sequence?: string },
+    ) => {
       if (key?.ctrl && key.name === "c") {
         process.stdin.off("keypress", onKey);
         return resolve(null);
       }
+      // readline reports ctrl-d as name "d", so without this a stray ctrl-d
+      // answers D and moves on.
+      if (key?.ctrl || key?.meta) return;
       const name = (key?.name ?? key?.sequence ?? "").toLowerCase();
       if (!valid.includes(name)) return;
       process.stdin.off("keypress", onKey);
@@ -212,7 +219,7 @@ function reveal(question: Question, chosen: string, correct: boolean): Promise<v
     }
     if (question.explanation) lines.push(...wrap(question.explanation), "");
     lines.push(`  ${pc.dim("any key to continue")}`);
-    process.stdout.write(lines.join("\n") + "\n");
+    append(lines);
 
     const onKey = () => {
       process.stdin.off("keypress", onKey);
