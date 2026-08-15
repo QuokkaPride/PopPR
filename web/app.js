@@ -12,13 +12,21 @@
  * Open source is public by definition, so the GitHub API needs no token, which
  * means no login, no account and no backend. Private repositories keep the
  * terminal path, where `gh` already holds the credentials.
+ *
+ * Certify mode (`&certify=1`) is the same run with a different ending: the
+ * timed pass still only scores you, and afterwards `MasteryLoop` re-asks
+ * whatever is not yet right until all of it is. The rules of that ending are
+ * core's, not this file's, so the browser and the terminal cannot drift.
  */
 import { detectConcepts } from "./vendor/core/concepts.js";
-import { bankQuestions } from "./vendor/core/bank.js";
+import { bankQuestions, certifySet } from "./vendor/core/bank.js";
 import { Staircase } from "./vendor/core/adaptive.js";
+import { MasteryLoop } from "./vendor/core/mastery.js";
+import { certifyComment, MAX_CERTIFY_QUESTIONS } from "./vendor/core/certify.js";
 import { scoreAnswer, liveValue } from "./vendor/core/score.js";
 import { scorecard, verdictLine, formatDuration } from "./vendor/core/scorecard.js";
 
+/** Default clock. A certify link can override it with `&t=` seconds. */
 const RUN_MS = 180_000;
 /** Input ignored for this long after a question appears, so a late keypress
  *  from the previous one cannot answer this one. */
@@ -45,6 +53,45 @@ function parseTarget(raw) {
   const short = /^([^/\s]+)\/([^/#\s]+)[#/](\d+)$/.exec(raw.trim());
   if (short) return { owner: short[1], repo: short[2], number: Number(short[3]) };
   return null;
+}
+
+/**
+ * The run options a certify link carries: `?pr=owner/repo/N&certify=1&n=8&t=120`,
+ * exactly what `quizUrl` in core emits.
+ *
+ * Presence of `certify` is the switch rather than its value, because the link
+ * builder only ever writes `certify=1` and a value nobody writes is a value
+ * nobody has to agree on. `n` and `t` are hints from a maintainer's workflow
+ * config, so they arrive from a repo the player does not control: anything that
+ * is not a sane positive integer is dropped and the defaults stand.
+ */
+function readOptions(params) {
+  return {
+    certify: params.has("certify"),
+    questions: positiveInt(params.get("n"), MAX_CERTIFY_QUESTIONS),
+    time: positiveInt(params.get("t"), 3600),
+  };
+}
+
+function positiveInt(raw, max) {
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1) return 0;
+  return Math.min(n, max);
+}
+
+/**
+ * Built by hand rather than with core's `quizUrl`, which returns the canonical
+ * hosted URL. Rewriting the address bar to another origin mid-run would reload
+ * the page for anyone running this locally or from a fork.
+ */
+function queryFor(target, opts) {
+  let q = `?pr=${target.owner}/${target.repo}/${target.number}`;
+  if (opts.certify) {
+    q += "&certify=1";
+    if (opts.questions) q += `&n=${opts.questions}`;
+    if (opts.time) q += `&t=${opts.time}`;
+  }
+  return q;
 }
 
 async function fetchPr({ owner, repo, number }) {
@@ -80,6 +127,10 @@ async function fetchPr({ owner, repo, number }) {
     repo: `${owner}/${repo}`,
     base: pr.base?.ref ?? "",
     head: pr.head?.ref ?? "",
+    // Certification binds to a commit: a push invalidates it, the same way it
+    // invalidates a review approval. Without this the comment cannot say which
+    // diff was answered for.
+    headSha: pr.head?.sha ?? "",
     title: pr.title,
     body: pr.body ?? "",
     url: pr.html_url,
@@ -145,6 +196,11 @@ function currentStreak(history) {
 const state = {
   ctx: null,
   staircase: null,
+  certify: false,
+  /** The certify set, kept whole: the mastery loop and the comment both need
+   *  every question, not just the ones the clock reached. */
+  pool: [],
+  runMs: RUN_MS,
   answered: [],
   points: 0,
   combo: 0,
@@ -158,14 +214,19 @@ const state = {
   locked: false,
 };
 
-async function load(target) {
+async function load(target, opts) {
   show("loading");
   $("loading-text").textContent = "Reading the diff";
   const ctx = await fetchPr(target);
 
   $("loading-text").textContent = "Choosing questions";
   const detected = detectConcepts(ctx);
-  const questions = bankQuestions(detected);
+  // A certify set is smaller and round-robins across concepts, because every
+  // question in it has to be answered correctly before merging and one concept
+  // must not be able to monopolise that.
+  const questions = opts.certify
+    ? certifySet(detected, { limit: opts.questions || 10 })
+    : bankQuestions(detected);
 
   if (!questions.length) {
     throw new Error(
@@ -174,18 +235,23 @@ async function load(target) {
   }
 
   state.ctx = ctx;
+  state.certify = opts.certify;
+  state.pool = questions;
+  state.runMs = opts.time ? opts.time * 1000 : RUN_MS;
   state.staircase = new Staircase();
   state.staircase.add(questions);
 
   $("brief-label").textContent = `${ctx.repo} ${ctx.label}`;
   $("brief-detail").textContent =
     `${detected.length} concept${detected.length === 1 ? "" : "s"} in this diff · ` +
-    `${questions.length} questions · 3:00 on the clock`;
+    `${questions.length} questions · ${formatDuration(state.runMs)} on the clock`;
+  $("brief-certify").hidden = !state.certify;
   show("brief");
 }
 
 function start() {
-  state.deadline = Date.now() + RUN_MS;
+  $("clock").textContent = formatDuration(state.runMs);
+  state.deadline = Date.now() + state.runMs;
   state.ticker = setInterval(tick, 200);
   show("game");
   next();
@@ -195,7 +261,7 @@ function tick() {
   if (state.pausedAt) return; // reading a miss; the clock is stopped
   const remaining = Math.max(0, state.deadline - Date.now());
   $("clock").textContent = formatDuration(remaining);
-  $("track-fill").style.width = `${(remaining / RUN_MS) * 100}%`;
+  $("track-fill").style.width = `${(remaining / state.runMs) * 100}%`;
   if (state.question && !state.locked) {
     const value = liveValue(state.question.difficulty, Date.now() - state.askedAt, state.combo);
     $("q-value").textContent = `+${value}`;
@@ -251,6 +317,33 @@ function waitForContinue() {
   });
 }
 
+/**
+ * The line in your own diff that caused this question.
+ *
+ * A bank question with only a concept tag reads as trivia bolted onto a PR:
+ * "promise-all" does not tell you that YOU wrote one in checkout.ts an hour
+ * ago. One line closes that, and it links straight into the PR's Files tab so
+ * the answer to "where?" is a click rather than a search.
+ */
+function showWhy(question) {
+  const row = $("why");
+  const ev = question.evidence && question.evidence[0];
+  if (!ev) {
+    row.hidden = true;
+    return;
+  }
+
+  const where = ev.line ? `${ev.file}:${ev.line}` : ev.file;
+  const link = $("why-where");
+  link.textContent = where;
+  // GitHub anchors a diff line by the SHA-256 of the file path, which we cannot
+  // compute here, so link to the Files tab and let the browser's find do the
+  // rest. A link that lands on the right file beats no link.
+  link.href = state.ctx?.url ? `${state.ctx.url}/files` : "#";
+  $("why-code").textContent = ev.text;
+  row.hidden = false;
+}
+
 function next() {
   const q = state.staircase.next();
   if (!q) return finish();
@@ -268,6 +361,7 @@ function next() {
   $("q-difficulty").textContent = q.difficulty;
   $("q-difficulty").className = `diff ${q.difficulty}`;
   $("q-concept").textContent = q.concept;
+  showWhy(q);
   rich($("prompt"), q.prompt);
 
   const list = $("options");
@@ -359,7 +453,7 @@ function buildResult() {
     repo: state.ctx.repo,
     answered: state.answered,
     correctCount: state.answered.filter((a) => a.correct).length,
-    totalMs: RUN_MS - Math.max(0, state.deadline - Date.now()),
+    totalMs: state.runMs - Math.max(0, state.deadline - Date.now()),
     points: state.points,
     bestCombo: state.bestCombo,
     weakConcepts: Object.keys(missed).sort((a, b) => missed[b] - missed[a]),
@@ -371,6 +465,9 @@ function finish() {
   clearInterval(state.ticker);
   state.ticker = null;
   if (!state.answered.length) {
+    // A certify run that answered nothing still has the whole set to master,
+    // and there is no review worth showing for zero answers, so skip to it.
+    if (state.certify) return startMastery();
     show("landing");
     return;
   }
@@ -388,7 +485,23 @@ function finish() {
 
   const misses = state.answered.filter((a) => !a.correct);
   renderMisses(misses);
-  $("retry-offer").hidden = misses.length === 0;
+
+  if (state.certify) {
+    // The retry offer is an invitation you can decline. Certification is the
+    // rest of the run, so it takes that slot rather than sitting beside it.
+    // The review screen still comes first: reading what you missed is the part
+    // that makes the next pass shorter.
+    $("retry-offer").hidden = true;
+    // Built only to word the button. The loop has no side effects until next()
+    // is called, and asking it what is left beats recomputing that out here.
+    const left = new MasteryLoop(state.pool, state.answered).progress.remaining;
+    $("certify-go").textContent = left
+      ? `Answer the remaining ${left} until every one is right`
+      : "Get your certify comment";
+    $("certify-offer").hidden = false;
+  } else {
+    $("retry-offer").hidden = misses.length === 0;
+  }
   show("review");
 }
 
@@ -456,18 +569,56 @@ function rich(node, text) {
   });
 }
 
-// ── second pass ────────────────────────────────────────────────────────────
+// ── second pass, and the mastery loop that borrows its screen ──────────────
 
-const second = { queue: [], index: 0, correct: 0 };
+const second = {
+  queue: [],
+  index: 0,
+  correct: 0,
+  /** The question on screen. In mastery mode it is the loop's own re-shuffled
+   *  copy, so nothing may read options or `correct` off the original. */
+  current: null,
+  /** A `MasteryLoop` in certify mode, null for the ordinary retry. */
+  loop: null,
+  readyAt: 0,
+};
 
+/** The optional retry after an ordinary run: one untimed sweep of the misses. */
 function startSecondPass() {
+  second.loop = null;
   second.queue = state.answered.filter((a) => !a.correct).map((a) => a.question);
   second.index = 0;
   second.correct = 0;
   askSecond();
 }
 
+/**
+ * Certify's ending, on the same screen.
+ *
+ * Nothing here tracks a queue or an index: which question comes next, when a
+ * miss comes back and what counts as finished are `MasteryLoop`'s to decide, so
+ * the browser and the CLI cannot disagree about when someone is done. The
+ * timed pass is handed over as the first pass, so anything already answered
+ * correctly under the clock is not asked again.
+ */
+function startMastery() {
+  second.queue = [];
+  second.index = 0;
+  second.correct = 0;
+  second.loop = new MasteryLoop(state.pool, state.answered);
+  askSecond();
+}
+
 function askSecond() {
+  if (second.loop) {
+    const q = second.loop.next();
+    if (!q) return showCertified();
+    // Read after next(), which is where the pass number turns over.
+    const p = second.loop.progress;
+    renderSecond(q, `mastery · pass ${p.pass} · ${p.remaining} left`);
+    return;
+  }
+
   if (second.index >= second.queue.length) {
     $("verdict").textContent =
       `${second.correct}/${second.queue.length} on the second pass. ` +
@@ -479,8 +630,20 @@ function askSecond() {
     return;
   }
 
-  const q = second.queue[second.index];
-  $("second-progress").textContent = `second pass  ${second.index + 1}/${second.queue.length}`;
+  renderSecond(
+    second.queue[second.index],
+    `second pass  ${second.index + 1}/${second.queue.length}`,
+  );
+}
+
+function renderSecond(q, progress) {
+  second.current = q;
+  // The same guard the timed screen uses. It matters more here: mastery asks
+  // question after question, so a key still travelling from the last reveal
+  // would otherwise land on the one that just rendered.
+  second.readyAt = Date.now() + GUARD_MS;
+
+  $("second-progress").textContent = progress;
   $("second-concept").textContent = q.concept;
   rich($("second-prompt"), q.prompt);
   $("second-reveal").hidden = true;
@@ -506,9 +669,13 @@ function askSecond() {
 }
 
 function revealSecond(key) {
-  const q = second.queue[second.index];
+  const q = second.current;
+  if (!q || !$("second-reveal").hidden) return; // already graded this one
+  if (Date.now() < second.readyAt) return;
+
   const ok = key === q.correct;
-  if (ok) second.correct++;
+  if (second.loop) second.loop.record(ok);
+  else if (ok) second.correct++;
 
   const picked = q.options.find((o) => o.key === key);
   const right = q.options.find((o) => o.key === q.correct);
@@ -520,6 +687,38 @@ function revealSecond(key) {
   rich($("second-explain"), q.explanation ?? "");
   $("second-reveal").hidden = false;
   $("second-options").replaceChildren();
+}
+
+// ── certified ──────────────────────────────────────────────────────────────
+
+/**
+ * The end of a certify run: a comment to paste, and nothing about how it went.
+ *
+ * The loop's attempt count never leaves core, so there is nothing on this
+ * screen that could publish how many tries it took. That is the whole deal the
+ * gate rests on: finishing is public, struggling is not.
+ */
+function showCertified() {
+  const sha = state.ctx?.headSha ?? "";
+  const n = state.pool.length;
+
+  $("certified-detail").textContent =
+    `${n} question${n === 1 ? "" : "s"}${sha ? ` on ${sha.slice(0, 7)}` : ""}`;
+  $("certify-pr").href = state.ctx?.url ?? "#";
+
+  // A marker with no sha in it is ignored in silence by the verifier, so
+  // offering the comment anyway would look like certifying and do nothing.
+  // Say what happened instead and point at the terminal, which reads the sha
+  // from git rather than from the API. The link to the PR stays either way.
+  const bound = Boolean(sha);
+  $("certify-how").hidden = !bound;
+  $("certify-comment").hidden = !bound;
+  $("certify-copy").hidden = !bound;
+  $("certify-warning").hidden = bound;
+  if (bound) {
+    $("certify-comment").textContent = certifyComment({ headSha: sha, questions: state.pool });
+  }
+  show("certified");
 }
 
 // ── wiring ─────────────────────────────────────────────────────────────────
@@ -542,9 +741,12 @@ $("load-form").addEventListener("submit", async (e) => {
     err.hidden = false;
     return;
   }
+  // Certify options survive a hand-typed PR: someone typing here arrived on a
+  // certify link and hit an error, so the repo's rules still apply.
+  const opts = readOptions(new URLSearchParams(location.search));
   try {
-    history.replaceState(null, "", `?pr=${target.owner}/${target.repo}/${target.number}`);
-    await load(target);
+    history.replaceState(null, "", queryFor(target, opts));
+    await load(target, opts);
   } catch (e2) {
     err.textContent = e2.message;
     err.hidden = false;
@@ -554,26 +756,48 @@ $("load-form").addEventListener("submit", async (e) => {
 
 $("start").addEventListener("click", start);
 $("retry").addEventListener("click", startSecondPass);
+$("certify-go").addEventListener("click", startMastery);
 $("second-next").addEventListener("click", () => {
-  second.index++;
+  // Mastery keeps its own place in the set; the plain second pass does not.
+  if (!second.loop) second.index++;
   askSecond();
 });
 
-$("copy").addEventListener("click", async () => {
-  await navigator.clipboard.writeText($("scorecard").textContent);
-  $("copy").textContent = "Copied";
-  setTimeout(() => ($("copy").textContent = "Copy scorecard"), 1500);
+$("copy").addEventListener("click", () => {
+  copyInto($("copy"), $("scorecard").textContent, "Copy scorecard");
+});
+
+/**
+ * Clipboard writes reject on an unfocused document, a denied permission or a
+ * non-secure context. Swallowing that leaves the button dead with no
+ * explanation, which matters most for the certify comment: it is the only
+ * handoff of the contributor's proof. The text is selectable either way, so
+ * failure just has to say so.
+ */
+async function copyInto(button, text, label) {
+  try {
+    await navigator.clipboard.writeText(text);
+    button.textContent = "Copied";
+  } catch {
+    button.textContent = "Select it above and copy";
+  }
+  setTimeout(() => (button.textContent = label), 2000);
+}
+
+$("certify-copy").addEventListener("click", () => {
+  copyInto($("certify-copy"), $("certify-comment").textContent, "Copy comment");
 });
 
 // Deep link: ?pr=owner/repo/123 plays immediately, which is the whole point of
 // putting a link in the PR comment.
 (async function boot() {
-  const raw = new URLSearchParams(location.search).get("pr");
+  const params = new URLSearchParams(location.search);
+  const raw = params.get("pr");
   if (!raw) return show("landing");
   const target = parseTarget(raw);
   if (!target) return show("landing");
   try {
-    await load(target);
+    await load(target, readOptions(params));
   } catch (e) {
     $("landing-error").textContent = e.message;
     $("landing-error").hidden = false;

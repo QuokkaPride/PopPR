@@ -45,6 +45,24 @@ function wrap(text: string, width = 68, indent = "  "): string[] {
   return out;
 }
 
+/**
+ * The line in your own diff that caused this question.
+ *
+ * Without it a bank question reads as trivia that happens to be attached to a
+ * PR: the concept tag says "promise-all", which does not tell you that YOU
+ * wrote a Promise.all in checkout.ts an hour ago. One dim line closes that gap,
+ * and it stays one line because the question is what should hold the attention.
+ */
+function whyLine(question: Question): string[] {
+  const first = question.evidence?.[0];
+  if (!first) return [];
+
+  const where = first.line ? `${first.file}:${first.line}` : first.file;
+  const room = 74 - where.length;
+  const code = first.text.length > room ? first.text.slice(0, room - 1) + "…" : first.text;
+  return [`  ${pc.dim("↳")} ${pc.cyan(where)}  ${pc.dim(code)}`];
+}
+
 function difficultyTag(d: string): string {
   if (d === "hard") return pc.red(d);
   if (d === "medium") return pc.yellow(d);
@@ -203,6 +221,7 @@ function askOne(
         `  ${pc.dim("Q" + ctx.number)} ${difficultyTag(question.difficulty)} ${pc.dim(
           "· " + question.concept,
         )}${" ".repeat(Math.max(1, 44 - question.concept.length))}${pc.dim("+" + value)}`,
+        ...whyLine(question),
         "",
       ];
 

@@ -46,6 +46,11 @@
     <h2 id="brief-label"></h2>
     <p class="muted" id="brief-detail"></p>
     <p class="muted">Hard questions are worth 3.5x. Speed and streaks multiply.</p>
+    <p class="hint" id="brief-certify" hidden>
+      This repo asks contributors to certify, so the clock only scores you.
+      Afterwards every question has to be answered correctly: no clock, no limit
+      on tries, and you cannot fail it.
+    </p>
     <button id="start">Start</button>
     <p class="hint">Answer with A, B, C, D or click.</p>
   </section>
@@ -63,6 +68,10 @@
       <span id="q-difficulty"></span>
       <span id="q-concept"></span>
       <span id="q-value" class="value"></span>
+    </p>
+    <p id="why" class="why" hidden>
+      <a id="why-where" target="_blank" rel="noopener"></a>
+      <code id="why-code"></code>
     </p>
     <p id="prompt" class="prompt"></p>
     <ul id="options"></ul>
@@ -93,6 +102,10 @@
       <button id="retry">Retry the ones you missed</button>
       <p class="hint">No clock, no points. Answering again is what makes it stick.</p>
     </div>
+    <div id="certify-offer" hidden>
+      <button id="certify-go">Finish certifying</button>
+      <p class="hint">No clock and no limit on tries. How many it takes is never published.</p>
+    </div>
     <p class="hint">Missed concepts come back on a future PR.</p>
   </section>
 
@@ -111,6 +124,28 @@
       <p id="second-explain" class="muted"></p>
       <button id="second-next">Continue</button>
     </div>
+  </section>
+
+  <section id="certified" class="screen" hidden>
+    <header class="summary">
+      <span class="brand">PopPR</span>
+      <strong>Certified</strong>
+      <span id="certified-detail" class="muted"></span>
+    </header>
+    <p id="certify-warning" class="error" hidden>
+      GitHub did not return the head commit for this pull request, so the comment
+      cannot be bound to it. Certify from your terminal instead:
+      <code>npx @quokkapride/poppr --certify</code>
+    </p>
+    <div class="card">
+      <p class="muted" id="certify-how">
+        Paste this as a comment on the PR and the <code>poppr/certified</code> check turns green.
+      </p>
+      <pre id="certify-comment"></pre>
+      <button id="certify-copy">Copy comment</button>
+      <a id="certify-pr" class="linkish" target="_blank" rel="noopener">Open the PR</a>
+    </div>
+    <p class="hint">A new push resets the check, because the diff it answered for is gone.</p>
   </section>
 </main>
 <script type="module" src="./app.js"></script>

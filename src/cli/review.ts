@@ -79,8 +79,15 @@ export function renderReview(result: RunResult, runNumber: number, trends: Conce
         out.push("");
         out.push(wrap(q.explanation));
       }
-      if (q.anchors.length) {
-        out.push(`     ${pc.dim("→ " + q.anchors.slice(0, 3).join(", "))}`);
+      // Where this came from in your own diff. The line beats the file list:
+      // "src/checkout.ts" is a place to go looking, the line is the answer.
+      const ev = q.evidence?.[0];
+      if (ev) {
+        const where = ev.line ? `${ev.file}:${ev.line}` : ev.file;
+        out.push(`     ${pc.dim("↳ " + where)}`);
+        out.push(`     ${pc.dim(ev.text.slice(0, 62))}`);
+      } else if (q.anchors.length) {
+        out.push(`     ${pc.dim("↳ " + q.anchors.slice(0, 3).join(", "))}`);
       }
       out.push("");
     }

@@ -18,11 +18,13 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
-      - run: npm run build
-      # The bank audit is the real gate here: it fails if the correct answer is
-      # the longest option too often, which is how multiple choice quietly
-      # becomes gameable without anyone noticing.
-      - run: npm run audit:bank
+      # `npm test` is build, then the bank audit, then the node:test suites.
+      # The audit is the gate that matters most: it fails if the correct answer
+      # is the longest option too often, which is how multiple choice quietly
+      # becomes gameable without anyone noticing. The suites cover the certify
+      # rules, and those decide who can turn the gate green, so they have to run
+      # on a PR rather than at release time.
+      - run: npm test
 
   smoke:
     runs-on: ubuntu-latest

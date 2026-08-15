@@ -1,0 +1,78 @@
+name: PopPR
+description: Pop quiz on the pull request you just shipped, posted as a comment and optionally required before merge.
+
+# Two things below look like omissions and are not.
+#
+# 1. There is deliberately no checkout step. The diff arrives as text through
+#    the API, so no code from the PR head is ever placed on the runner and
+#    none of it executes: a fork cannot reach a token through a postinstall
+#    script or a checked-in config. Skipping checkout is also what makes this
+#    work on repos that are not Node at all, Rust or Java or docs, since npx
+#    only needs the Node the GitHub runner already ships with.
+#
+# 2. Composite actions cannot declare `permissions`, so the consumer's workflow
+#    has to carry them: `pull-requests: write` for the comment, plus
+#    `statuses: write` once certify is on. GitHub gives us no way to demand
+#    that from here, and the failure is a 403 deep in a log, so the README
+#    leads with it.
+#
+# The version is pinned to the 0.2 line rather than left floating. `npx poppr`
+# with no range would pull a future major into someone else's CI on the day it
+# publishes, and an action that changes behaviour without the consumer editing
+# anything is an action they stop trusting.
+
+branding:
+  icon: help-circle
+  color: purple
+
+inputs:
+  certify:
+    description: >-
+      Ask the PR author to answer every question about their diff correctly.
+      On its own this only asks: the run posts a comment and reports the
+      `poppr/certified` status, and nothing blocks. It becomes a real gate only
+      when the repo adds a branch protection rule requiring that same
+      `poppr/certified` context, which is a decision a maintainer makes
+      deliberately rather than one they inherit from turning a flag on.
+    required: false
+    default: "false"
+  questions:
+    description: >-
+      How many questions the certify set holds. Ten runs about three minutes
+      and is spread across concepts rather than piled onto one.
+    required: false
+    default: "10"
+  time:
+    description: >-
+      Seconds on the clock for the timed first pass. Missing questions under
+      the clock costs nothing except score: the untimed loop afterwards still
+      has to be finished, so this number sets the game, not the gate.
+    required: false
+    default: "180"
+  token:
+    description: >-
+      Token used to read the diff, comment, and set the commit status. The
+      default job token is enough; pass a PAT only if you need the comment to
+      come from a named account.
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    # One step, one process. Everything the handler needs arrives as
+    # environment rather than argv, so the same entry point works when a human
+    # reproduces a CI run locally with the same variables exported.
+    #
+    # GH_REPO is here because of the missing checkout above, not despite it:
+    # the `gh` CLI normally infers the repo from the git remote, and there is
+    # no git repo on this runner to infer from. GITHUB_REPOSITORY, EVENT_NAME
+    # and EVENT_PATH are not listed because the runner already exports them.
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        GH_REPO: ${{ github.repository }}
+        POPPR_CERTIFY: ${{ inputs.certify }}
+        POPPR_QUESTIONS: ${{ inputs.questions }}
+        POPPR_TIME: ${{ inputs.time }}
+      run: npx --yes @quokkapride/poppr@0.2 gh-event

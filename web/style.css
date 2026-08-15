@@ -140,6 +140,39 @@ ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: col
   min-width: 1.2em;
 }
 
+/* The line from your diff that triggered the question. Dim and single-line on
+   purpose: it answers "why am I being asked this" without competing with the
+   question itself. */
+/* Keyed by id, not by `.why`: the review screen already has a `.miss .why` for
+   the misconception line, and laying that paragraph out as a flex row breaks
+   it wherever the text carries inline code. */
+#why {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  margin: -6px 0 18px;
+  font-size: 13px;
+  min-width: 0;
+}
+#why[hidden] { display: none; }
+#why-where {
+  color: var(--cyan);
+  font-family: var(--mono);
+  text-decoration: none;
+  flex: 0 0 auto;
+}
+#why-where:hover { text-decoration: underline; }
+#why-code {
+  color: var(--muted);
+  background: none;
+  border: 0;
+  padding: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
 /* ── flash ───────────────────────────────────────────────────────────── */
 .flash { text-align: center; padding-top: 90px; }
 #flash-mark { font-size: 72px; line-height: 1; }
@@ -181,14 +214,31 @@ ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: col
 pre { margin: 0 0 16px; font: inherit; white-space: pre-wrap; }
 .linkish { color: var(--cyan); margin-left: 14px; font-size: 13px; }
 
-#retry-offer { margin-bottom: 22px; }
-#retry-offer .hint { margin: 10px 0 0; }
+#retry-offer, #certify-offer { margin-bottom: 22px; }
+#retry-offer .hint, #certify-offer .hint { margin: 10px 0 0; }
 
 /* ── second pass ─────────────────────────────────────────────────────── */
 #second-reveal { margin-top: 22px; }
 #second-mark.right { color: var(--green); }
 #second-mark.wrong { color: var(--red); }
 #second-answer { color: var(--green); }
+
+/* ── certified ───────────────────────────────────────────────────────── */
+#certified-detail { font-family: var(--mono); font-size: 13px; }
+#certify-warning { margin: 0 0 22px; }
+/* Markdown someone is about to paste, so it is shown at code size and left
+   verbatim. Capped in height because the copy button has to stay reachable
+   without scrolling past a comment nobody reads on this screen. */
+#certify-comment {
+  font-size: 13px;
+  line-height: 1.6;
+  max-height: 230px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+/* With no comment to copy, the link is all the card has left, so it should not
+   sit indented as though a button were still beside it. */
+#certify-copy[hidden] + #certify-pr { margin-left: 0; }
 
 /* ── spinner ─────────────────────────────────────────────────────────── */
 .spin {
