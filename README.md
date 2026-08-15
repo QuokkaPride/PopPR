@@ -7,7 +7,7 @@
 
 ### Understand your own AI slop.
 
-Your agent wrote it. You shipped it. Can you explain it?
+You shipped it, but can you explain it?
 
 PopPR quizzes you on the engineering concepts in your PR. Three minutes, multiple choice, generated on your machine from your diff.
 
