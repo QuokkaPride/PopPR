@@ -11,23 +11,31 @@ Only the first two lines show before "see more". They decide everything.
 ## 1. Main post
 
 ```
-Every dev I know is shipping more with Claude Code.
-Fewer of us are learning more.
+Claude Code has made me far more productive, but it's slowed down my learning.
 
-I built PopPR to fix that for myself. It reads the diff of the PR you just opened, works out which engineering concepts are in it, and quizzes you on those exact lines. Three minutes, multiple choice, on your machine.
+So I built PopPR. It reads the diff of the PR you just opened, finds the engineering concepts in it, and quizzes you. Three minutes, multiple choice, on your machine.
 
-Installs in seconds:
+Try it on your current branch:
 
 npx @quokkapride/poppr
 
-You can also put it on a repo and require a passing quiz before anything merges.
+Or put it on your team's repo and require every question answered correctly before a PR can merge.
 
-Free and MIT. Link in the comments.
+https://github.com/QuokkaPride/PopPR
 
 Is your learning keeping up with your shipping?
 ```
 
-515 characters.
+455 characters.
+
+Two calls to make before you post:
+
+- **The link is in the body.** LinkedIn suppresses reach on those. Moving it to
+  the first comment reaches more people; leaving it reaches fewer people who
+  click more. Your call, and with a small following the link in the body is
+  defensible.
+- **"before a PR can merge"** rather than "approved". The check gates the merge
+  button through branch protection. Approval is a separate thing a human does.
 
 ---
 
