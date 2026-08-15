@@ -14,6 +14,36 @@ is the way it is, which choices were already argued through and reversed, what
 state the project is in, and what to build next. This file covers day-to-day
 mechanics; that one covers the reasoning.
 
+## Who this is for
+
+**The person who has to trust code they did not write.** Two shapes of the same
+job:
+
+1. **The open-source maintainer.** Contributions arrive from strangers, more of
+   them AI-assisted every month, and the reviewer has no way to tell a
+   contributor who understands their patch from one who pasted it. Reviewing the
+   second kind costs more than writing it yourself. This is the buyer: they turn
+   on `certify`, mark `poppr/certified` required, and a merge now needs the
+   author to have demonstrated they can answer questions about their own diff.
+2. **The engineering lead.** Same problem inside a company, without the branch
+   protection. They want the team learning from what they ship rather than
+   accumulating code nobody on the team can explain at 3am.
+
+The secondary audience is the individual developer self-training on their own
+PRs, which is what `poppr practice` and the streak exist for. They are the ones
+who discover the tool. The maintainer is the one who deploys it.
+
+**What every design decision is measured against:** does this help someone
+decide whether to trust a patch, without insulting the person who wrote it?
+That is why the gate publishes completion rather than a score, why retakes stay
+private, and why the default is a comment rather than a check.
+
+**The thing they need in the first sixty seconds:** proof it costs them nothing
+to try. `npx @quokkapride/poppr` needs no key, no install and no config, and
+`poppr init` writes the workflow in one command. Anything that puts a setup step
+before the first play loses this person, because they are evaluating a tool for
+a repo they are responsible for, in a spare ten minutes.
+
 ## Status
 
 - Live on npm as `@quokkapride/poppr` v0.1.2
@@ -36,6 +66,7 @@ node dist/cli/index.js --local          # try it against the current branch
 node dist/cli/index.js --local --smart  # same, but AI picks the concepts
 node dist/cli/index.js --detect         # what would it ask? no game, no clock
 node dist/cli/index.js <pr> --certify   # timed pass, then master every question
+node dist/cli/index.js --local --deep   # bank instantly, AI questions stream in
 npm run build:web                       # web/vendor/ for the browser version
 ```
 
@@ -77,11 +108,14 @@ directly, so anything that writes to stdout or reads `process.argv` belongs in
 
 ## The three modes, and why
 
-| mode | selection | questions | speed |
+| mode | selection | questions | time to first question |
 |---|---|---|---|
 | quick (default) | regex over added lines | curated bank | ~50ms |
 | `--smart` | one AI call picks concepts | curated bank | ~12s |
-| `--deep` | n/a | AI writes them per-PR | ~3min |
+| `--deep` | regex, then AI | bank first, AI streams in | ~50ms |
+
+`--deep` used to block for three minutes before the first question. It now seeds
+from the bank and streams, so it is quick mode that gets better while you play.
 
 Quick mode is the default **because a tool you have to configure before the
 first play is a tool nobody plays.** It needs no key, no network, no Claude Code.
@@ -151,9 +185,16 @@ contrasts.
 
 ## Known rough edges
 
-- `--deep` takes ~3 minutes cold even with three parallel batches. The batches
-  stream into the live pool so play starts after the first, but this needs real
-  work before it is the mode anyone reaches for daily.
+- `--deep` generation still takes 2 to 4 minutes, but it no longer blocks: the
+  run is seeded from the curated bank in milliseconds and the written-for-you
+  questions join the live pool as each batch lands. On the default 180-second
+  clock they often arrive too late, and the review screen says so. A missing AI
+  backend now costs you the deep questions rather than the run.
+- Deep-mode question quality is NOT gated by `npm test`, because it needs a live
+  model. `scratchpad/deep-test.mjs` is the harness: it runs generation end to
+  end and applies the same length and structure audits the bank gets. Run it
+  after touching any prompt in `quiz.ts`. It caught the correct-is-shortest bug
+  at 53% in the generated questions, which is the same rot the bank had.
 - C/C++ is the weakest language at 47% of code PRs, and half of what fires on it
   is generic. C's bugs live half in the language and half in the specific data
   structure being touched, and the second half needs `--deep`.

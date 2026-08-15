@@ -152,23 +152,46 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
     // staircase because the staircase serves what the clock reaches, and the
     // claim covers every question whether the clock reached it or not.
     let certifyPool: Question[] = [];
+    /** Deep generation failed but the bank had already seeded a playable run. */
+    let deepFailed = false;
 
     if (opts.deep) {
       // Deep mode: questions about YOUR code. Needs a model, and the model has
       // to actually reason about the diff, so it is the slow path.
+      //
+      // Seed from the curated bank FIRST, which costs a few milliseconds and no
+      // network. Waiting for the model before showing anything was deep mode's
+      // worst property: measured at 228 seconds on a large diff, which is three
+      // minutes of spinner before a timed game starts. Now the run begins
+      // immediately on bank questions and the written-for-you ones join the live
+      // pool as each batch lands.
+      const detected = detectConcepts(ctx);
+      const seed = bankQuestions(detected, 20, { codeFiles: codeFiles(ctx) });
+      staircase.add(seed);
+
       spin.update("Picking a backend");
-      const { provider, note } = await detectProvider(opts.provider);
+      let backend;
+      try {
+        backend = await detectProvider(opts.provider);
+      } catch (err) {
+        // No backend installed is the commonest deep-mode failure by far, and it
+        // used to end the run. With a seeded pool there is still a game to play,
+        // so report it once at the end rather than exiting here.
+        if (seed.length === 0) throw err;
+        spin.stop();
+        deepFailed = true;
+        backend = null;
+      }
       const review = conceptsDueForReview(history);
 
-      spin.update(`Reading your code  ${pc.dim(`(${note})`)}`);
-
-      // Three parallel batches. The game starts the moment the first lands and
-      // later batches feed the live pool, so the wait is one batch, not three.
-      pending = 3;
+      // Three parallel batches, each feeding the live pool as it arrives.
+      pending = backend ? 3 : 0;
       let firstBatch: (() => void) | null = null;
       const ready = new Promise<void>((resolve) => (firstBatch = resolve));
 
-      generation = generateQuizStreaming(ctx, provider, {
+      if (backend) {
+      spin.update(`Reading your code  ${pc.dim(`(${backend.note})`)}`);
+      generation = generateQuizStreaming(ctx, backend.provider, {
         reviewConcepts: review,
         onBatch(batch) {
           pending--;
@@ -177,12 +200,21 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
         },
       }).catch((err) => {
         firstBatch?.();
-        throw err;
+        // A backend that is missing or broken is not a reason to refuse to
+        // play, now that there is always something in the pool. Swallow it
+        // when the bank seeded the run and report it on the review screen.
+        if (seed.length === 0) throw err;
+        deepFailed = true;
       });
+      }
 
-      await ready;
+      // Only block when the bank had nothing to offer, which is a diff with no
+      // code in it or none the rules could read.
+      if (seed.length === 0) {
+        await ready;
+        if (staircase.remaining === 0) await generation;
+      }
       spin.stop();
-      if (staircase.remaining === 0) await generation;
     } else {
       // Quick mode: pure pattern matching against a curated bank. No model, no
       // network, no key: a few milliseconds. This is the default because a
@@ -259,6 +291,21 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
     result.streak = currentStreak(updated);
 
     console.log(renderReview(result, updated.runs.length, conceptTrends(updated)));
+
+    // Deep mode now seeds from the bank and plays immediately, so a backend that
+    // is missing or slow costs you the written-for-you questions and not the run.
+    // Say which one you got, because the two are not the same product.
+    if (deepFailed) {
+      console.log(
+        pc.yellow("  Those were curated bank questions.\n") +
+          pc.dim("  Deep mode needs an AI backend: `npm i -g @anthropic-ai/claude-code`, or set ANTHROPIC_API_KEY.\n"),
+      );
+    } else if (opts.deep && pending > 0) {
+      console.log(
+        pc.dim("  The clock beat the model: some questions written for this PR arrived too late.\n") +
+          pc.dim("  Run it again and they will be waiting, or give it longer with `-t 300`.\n"),
+      );
+    }
 
     if (opts.certify) {
       // Certification supersedes the optional retry: it covers the same misses

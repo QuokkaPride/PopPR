@@ -47,7 +47,8 @@
     "test": "npm run build && npm run audit:bank && node --test test/*.test.mjs",
     "prepublishOnly": "npm run build && npm run audit:bank",
     "demo": "node demo/frames.mjs > /tmp/poppr-frames.json && python3 demo/render.py /tmp/poppr-frames.json demo/poppr.gif",
-    "build:web": "npm run build && node scripts/build-web.mjs"
+    "build:web": "npm run build && node scripts/build-web.mjs",
+    "test:deep": "npm run build && node scripts/deep-test.mjs"
   },
   "dependencies": {
     "commander": "^12.1.0",

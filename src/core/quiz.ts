@@ -2,7 +2,7 @@ import type { Difficulty, PrContext, Provider, Question } from "./types.js";
 import { renderDiff } from "./diff.js";
 
 const ARCHETYPE_GUIDE = `
-ARCHETYPES — use a spread of these, never more than two of the same kind:
+ARCHETYPES: use a spread of these, never more than two of the same kind:
 
 - blast-radius: name a caller outside the diff and what breaks for them. Only use
   this when the "references OUTSIDE the diff" section gives you real callers.
@@ -10,7 +10,7 @@ ARCHETYPES — use a spread of these, never more than two of the same kind:
   useMemo, a retry, a guard clause, an await) and ask what happens if it is
   removed.
 - language-concept: test the language primitive the code actually uses. Not
-  trivia — the semantics that bite in production. Promise.all rejection
+  trivia, but the semantics that bite in production. Promise.all rejection
   behaviour, Python default-arg mutability, Go loop-variable capture, SQL NULL
   comparison, JS number precision, React stale closures.
 - failure-mode: describe a concrete production symptom (a real bug report, with
@@ -24,7 +24,7 @@ ARCHETYPES — use a spread of these, never more than two of the same kind:
 `.trim();
 
 const DISTRACTOR_RULES = `
-DISTRACTOR QUALITY — this is the hard part, and a lazy job here makes the whole
+DISTRACTOR QUALITY: this is the hard part, and a lazy job here makes the whole
 quiz worthless because people will pattern-match instead of thinking.
 
 Every wrong option MUST satisfy at least one of:
@@ -37,17 +37,33 @@ Every wrong option MUST NOT:
   - be a paraphrase of another option
   - put qualifiers like "always"/"never"/"automatically" only in the wrong ones
 
-LENGTH DISCIPLINE — read this twice, it is the most commonly failed rule:
-Models reliably write the correct answer longer and more specific than the
-distractors, which lets people score well without reading the code at all. That
-single leak destroys the product. Therefore:
-  - In AT LEAST HALF of your questions, a WRONG option must be the LONGEST option.
-  - The correct option must never be more than 10% longer than the mean of the
-    wrong options.
-  - Write the distractors FIRST, at full specificity, then write the correct
-    answer to match their length and tone.
-Before you emit each question, compare the character counts. If the correct
-answer is the longest, rewrite it shorter or lengthen a distractor.
+LENGTH DISCIPLINE. Read this twice. It is the most commonly failed rule, and
+failing it destroys the product, because a player who can pick the answer from
+its shape never reads the code.
+
+The rule is NOT "make the correct answer short". That is the trap, and it fails
+in both directions:
+  - Write the correct answer longest every time and "pick the wordiest" scores.
+  - Overcorrect and "pick the shortest" scores, which is worse because it looks
+    like the problem was fixed.
+  - Make it never longest and never shortest, and "drop both extremes, guess
+    between the two survivors" scores 50%.
+
+What you are aiming for is that option length carries NO information at all. So
+do this mechanically, per question:
+
+  Before writing the options, pick a target rank R for the correct answer by
+  cycling 1, 2, 3, 4, 1, 2, 3, 4 through the questions in this batch. R is where
+  the correct answer must land when the four options are sorted longest first.
+  R=1 means the correct answer IS the longest. R=4 means it IS the shortest.
+
+  Then write the three distractors at full specificity, count their characters,
+  and write the correct answer to land at rank R. Count again before you emit.
+
+Every option carries real content whatever its rank. Never pad an option with
+filler and never strip mechanism out of the correct answer to hit a number: move
+detail between options instead, and give a shorter option a tighter sentence
+rather than a vaguer one.
 
 Vary which letter is correct. Do not favour A or C.
 `.trim();
@@ -153,7 +169,7 @@ const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard"];
 /**
  * Validate and repair what the model gave us. Being strict here is what keeps a
  * bad generation from producing a quiz that is unanswerable or trivially
- * gameable — we drop malformed questions rather than showing them.
+ * gameable: we drop malformed questions rather than showing them.
  */
 function coerce(parsed: unknown): Question[] {
   const raw = (parsed as { questions?: unknown[] })?.questions;
@@ -254,7 +270,7 @@ export async function generateQuizStreaming(
       opts.onBatch?.(fresh, index);
       return fresh;
     } catch {
-      // One failed batch shouldn't sink the run — the other two still play.
+      // One failed batch shouldn't sink the run: the other two still play.
       opts.onBatch?.([], index);
       return [];
     }
