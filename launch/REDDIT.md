@@ -70,7 +70,7 @@ I fixed it and measured again, this time in the other direction, which I had not
 
 I fixed that too, and produced a third leak. Lengthening correct answers made whoever wrote them reach for the same contrastive construction, so one phrase ended up in five correct answers and zero of sixty-three distractors. A perfect predictor, in a bank that passed both length checks.
 
-The useful lesson is about gates rather than length. A gate written after a specific bug catches that bug, and the next one will be something nobody thought of. So the check is now general: learn from the bank itself which surface features correlate with correct answers, apply them blind with no access to the question text, and see what that scores. Chance is 25%. It scored 45%. It now scores 26%.
+The useful lesson is about gates rather than length. A gate written after a specific bug catches that bug, and the next one will be something nobody thought of. So the check is now general: learn from the bank itself which surface features correlate with correct answers, apply them blind with no access to the question text, and see what that scores. Chance is 25%. It scored 45%. It now scores 24%.
 
 One more finding, which cost me a day and which I have not seen written down anywhere. The obvious guard is "the correct answer must never be the longest or the shortest". Apply that and both metrics read 0%, which looks perfect. It also means "drop both extremes and guess between the two survivors" is worth 56%.
 

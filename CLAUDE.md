@@ -138,7 +138,8 @@ file and 0 of 63 distractors: a perfect predictor.
 
 So the gate is general rather than a ban on three specific mistakes. It asks the
 only question that matters: **what would a player who never reads the question
-score?** Chance is 25%, the limit is 37.5%, and the bank sits at 26%. Every
+score?** Chance is 25%, the limit is 37.5%, and the bank scores 23 to 25%
+across runs, which is chance. Every
 length check has a ceiling AND a floor, because being reliably un-extreme is as
 strong a tell as being reliably extreme.
 

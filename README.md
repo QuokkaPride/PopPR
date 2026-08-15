@@ -128,7 +128,7 @@ So `npm test` measures what a player who never reads the question would score:
 
   correct-is-longest  23%   (limit 35%, floor 10%, chance 25%)
   correct-is-shortest 11%   (limit 35%, floor 10%)
-  blind strategy      26%   (limit 37.5%, chance 25%)
+  blind strategy      24%   (limit 37.5%, chance 25%)
 
   ✓ bank is healthy
 ```

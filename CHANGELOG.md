@@ -29,7 +29,7 @@ correct-is-shortest both read 0%, which sounds healthy and meant "drop both
 extremes and guess between the survivors" was worth 56%. Both checks now have a
 floor as well as a ceiling, and the audit fails on a detection rule with no
 questions behind it as well as a question with no rule. A player who never reads
-the question now scores 26% against a 25% chance baseline, down from 45%. The
+the question now scores 24% against a 25% chance baseline, down from 45%. The
 same bug was in the `--deep` prompt at 53% and is fixed there too.
 
 **Two detection bugs found while measuring.** `#` was read as a comment in C

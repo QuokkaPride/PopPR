@@ -80,7 +80,7 @@ Two decisions the whole thing rests on, which I would rather state than have fou
 
 **The questions are the whole product, so I measure them like it.** Multiple choice rots when anything other than the content predicts the right answer. Mine did, three times. The first version had the correct answer as the longest option in 81% of questions. Fixing that overcorrected until it was the shortest 48% of the time. Fixing THAT produced a signature phrase that appeared in five correct answers and zero distractors.
 
-So the build now fails on the only question that matters: what would someone score if they never read the question at all? Chance is 25%. It sits at 26%.
+So the build now fails on the only question that matters: what would someone score if they never read the question at all? Chance is 25%. It scores 24%.
 
 Coverage is measured the same way. 487 merged PRs from 28 repos that were never used to write a single rule: 60% of PRs containing code match at least one concept. The rest get general engineering questions rather than an empty screen.
 
