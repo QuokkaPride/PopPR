@@ -1,5 +1,45 @@
 # Changelog
 
+## 0.3.0
+
+**Eight languages, and a real answer for small PRs.** The bank went from 145
+questions to 328 and from 47 concepts to 108, adding Rust, Java, Ruby and C/C++
+and deepening Go, Python and TypeScript. Every concept was chosen by measuring
+candidate rules against merged PRs and keeping only the ones that fired on real
+diffs, then verified on 487 held-out PRs from 28 repos that no rule was designed
+from. Code PRs matching at least one concept went from 46% to 60%, and Go, Rust
+and Java each roughly doubled.
+
+**No PR with code in it comes back empty.** About 40% of code PRs are one guard,
+one renamed field or one new branch, and the detection rules are right to stay
+quiet on those. Twenty-four general engineering questions now top a thin run up
+to eight, never displacing a question about your own diff, and the review screen
+says plainly when a question came from nowhere in particular. A PR that adds no
+code at all still gets nothing, which is the behaviour worth keeping.
+
+**`--deep` plays immediately.** It used to block for up to four minutes before
+showing a question, then start a three-minute clock. It now seeds from the
+curated bank in milliseconds and streams the written-for-you questions into the
+live pool as each batch lands, so time to first question went from 228 seconds
+to about two. A missing AI backend now costs you the deep questions rather than
+the run.
+
+**The bank audit grew two floors and a mirror.** Correct-is-longest and
+correct-is-shortest both read 0%, which sounds healthy and meant "drop both
+extremes and guess between the survivors" was worth 56%. Both checks now have a
+floor as well as a ceiling, and the audit fails on a detection rule with no
+questions behind it as well as a question with no rule. A player who never reads
+the question now scores 26% against a 25% chance baseline, down from 45%. The
+same bug was in the `--deep` prompt at 53% and is fixed there too.
+
+**Two detection bugs found while measuring.** `#` was read as a comment in C
+files, which discarded 4.5% of every added C line and blanked 30 files whose
+entire content was preprocessor directives. And the code-file check used a
+blocklist, so a hardware database, a `VERSION.dat` and a directory of `.pod`
+manpages counted as code; a copyright-year bump would have been quizzed. It is
+an allowlist now. Vue and Svelte single-file components reach the JavaScript
+rules for the first time.
+
 ## 0.1.3
 
 **The clock stops while you read a wrong answer.** A miss used to flash the bare
