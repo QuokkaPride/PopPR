@@ -11,50 +11,69 @@ Only the first two lines show before "see more". They decide everything.
 ## 1. Main post
 
 ```
-I have shipped code I could not explain.
-Claude Code gave me the speed. My learning paid for it.
+Every dev I know is shipping more with Claude Code.
+Fewer of us are learning more.
 
-You have probably done the same.
+I built PopPR to fix that for myself. It reads the diff of the PR you just opened, works out which engineering concepts are in it, and quizzes you on those exact lines. Three minutes, multiple choice, on your machine.
 
-I wrote PopPR to close my own gap. It reads your diff, works out which engineering concepts your change leans on, and asks you 8 to 20 multiple-choice questions about those exact lines. Three minutes on a clock.
-
-It runs on your machine and nothing leaves your laptop. No account, no API key.
-
-You can also put it on a repo and require a passing quiz before anything merges. Wrong answers come back untimed until you get them right, and I never publish a score.
-
-Understand your own AI slop. Free and MIT.
+Installs in seconds:
 
 npx @quokkapride/poppr
 
-Has your learning kept up with your shipping this year?
+You can also put it on a repo and require a passing quiz before anything merges.
+
+Free and MIT. Link in the comments.
+
+Is your learning keeping up with your shipping?
 ```
 
-718 characters.
+515 characters.
 
 ---
 
-## 2. The short one
+## 2. The personal one
+
+Same idea, first person. Use it if your feed responds better to you than to a
+claim about everyone.
+
+```
+Claude Code has made me far more productive.
+It has also slowed my learning to a crawl.
+
+So I built PopPR. It reads the diff of the PR you just opened, finds the engineering concepts in it, and quizzes you on those exact lines. Three minutes, multiple choice, on your machine.
+
+Installs in seconds:
+
+npx @quokkapride/poppr
+
+Free and MIT. Link in the comments.
+
+Anyone else feeling this?
+```
+
+386 characters.
+
+---
+
+## 3. The short one
 
 For when you want this out in thirty seconds.
 
 ```
-I have shipped code I could not explain.
-Claude Code gave me the speed. My learning paid for it.
+Claude Code made me productive. It also slowed my learning down.
 
-I wrote PopPR to close my own gap. It reads your diff and asks you about the engineering concepts in it. Three minutes, on your machine, no account.
+So I built PopPR: a three-minute quiz on the engineering concepts in your own PR. Runs on your machine, installs in seconds.
 
 npx @quokkapride/poppr
 
-Free and MIT, link in the comments.
-
-Has your learning kept up with your shipping?
+Free and MIT. Link in the comments.
 ```
 
-354 characters.
+251 characters.
 
 ---
 
-## 3. The manager one
+## 4. The manager one
 
 **Optional, and read this first.** It names your reporting line and says in
 public that you ship code you cannot always explain. Your manager will read it.
@@ -66,29 +85,29 @@ For four years nobody reviewed my code. Now my manager reads every PR I open.
 
 Best thing to happen to my work. Also the fastest way to find out how much I ship that I cannot explain.
 
-Claude Code gave me the speed. My learning paid for it. I want to be able to explain everything I ship, so I wrote PopPR.
+Claude Code gave me the speed. My learning paid for it. So I built PopPR.
 
-It reads your diff, works out which engineering concepts your change leans on, and asks you about those exact lines. Three minutes, on your machine, no account.
-
-Understand your own AI slop. Free and MIT.
+It reads your diff, works out which engineering concepts are in it, and quizzes you on those exact lines. Three minutes, on your machine, no account.
 
 npx @quokkapride/poppr
+
+Free and MIT. Link in the comments.
 
 Who reads your pull requests, and has that changed what you ship?
 ```
 
-603 characters.
+537 characters.
 
 ---
 
 ## First comment
 
-Post it within a minute of going live. Works with any of the three.
+Post it within a minute of going live. Works with any of the four.
 
 ```
-Run it on the branch you are on right now: npx @quokkapride/poppr
-
 Repo, docs, and a browser version you can play without installing anything: https://github.com/QuokkaPride/PopPR
+
+Run it on the branch you are on right now: npx @quokkapride/poppr
 ```
 
 ## Hashtags
