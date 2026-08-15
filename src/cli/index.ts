@@ -26,6 +26,7 @@ import { runGame } from "./game.js";
 import { renderReview } from "./review.js";
 import { retryMissed, runMasteryLoop, confirmKey } from "./retry.js";
 import { runInit } from "./init.js";
+import { runPractice } from "./practice.js";
 import { runGhEvent } from "./gh-event.js";
 
 const exec = promisify(execFile);
@@ -66,6 +67,13 @@ program
   )
   .option("--json", "machine-readable output, for --detect")
   .action(main);
+
+program
+  .command("practice")
+  .description("quiz yourself on your weak concepts, with no PR involved")
+  .option("--concept <slug>", "drill one concept instead of the weakest ones")
+  .option("-t, --time <seconds>", "how long the run lasts", "180")
+  .action((opts: { concept?: string; time?: string }) => runPractice(opts));
 
 program
   .command("init")
