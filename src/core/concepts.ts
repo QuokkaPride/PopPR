@@ -104,16 +104,22 @@ const NON_CODE_EXTENSIONS = new Set([
 interface AddedLine {
   line: number;
   text: string;
+  /** Inside a triple-quoted string, so it is prose rather than code. */
+  inString: boolean;
 }
 
 function addedLines(file: DiffFile): AddedLine[] {
   const out: AddedLine[] = [];
   let lineNo = 0;
+  let inString = false;
 
   for (const raw of file.patch.split("\n")) {
     const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(raw);
     if (hunk) {
       lineNo = Number(hunk[1]);
+      // A hunk starts somewhere new in the file, so whatever string state the
+      // previous hunk ended in says nothing about this one.
+      inString = false;
       continue;
     }
     if (raw.startsWith("+++") || raw.startsWith("---")) continue;
@@ -121,17 +127,40 @@ function addedLines(file: DiffFile): AddedLine[] {
     // no line of its own.
     if (raw.startsWith("\\")) continue;
 
-    if (raw.startsWith("+")) {
-      out.push({ line: lineNo, text: raw.slice(1) });
-      lineNo++;
-    } else if (raw.startsWith("-")) {
-      // A removed line occupies no line in the new file.
-    } else {
+    const removed = raw.startsWith("-");
+    const added = raw.startsWith("+");
+    const text = added || removed ? raw.slice(1) : raw;
+
+    // State is tracked across context lines too, not just added ones: a
+    // docstring is usually opened in code the diff did not touch, so counting
+    // only added lines would miss that we are inside one.
+    if (!removed) {
+      const opensHere = inString;
+      inString = toggleTripleQuotes(text, inString);
+      if (added) {
+        // A line carrying the opening """ is itself the start of prose.
+        out.push({ line: lineNo, text, inString: opensHere || inString });
+      }
       lineNo++;
     }
   }
 
   return out;
+}
+
+/**
+ * Track whether we are inside a triple-quoted string.
+ *
+ * Python docstrings are the case that matters: they are prose, they routinely
+ * describe the very concepts detection looks for, and their continuation lines
+ * carry no comment marker at all. Found because `python-identity` fired on a
+ * sentence inside a docstring explaining an unrelated fix.
+ */
+function toggleTripleQuotes(text: string, inString: boolean): boolean {
+  const fences = text.match(/"""|'''/g);
+  if (!fences) return inString;
+  // An odd count flips the state, an even count opens and closes on one line.
+  return fences.length % 2 === 1 ? !inString : inString;
 }
 
 /**
@@ -208,7 +237,7 @@ export function detectConcepts(ctx: PrContext): DetectedConcept[] {
 
     // Comment lines keep their real line numbers but are excluded from what the
     // patterns see, so evidence still points at the right place in the file.
-    const lines = addedLines(file).filter((l) => isCode(l.text));
+    const lines = addedLines(file).filter((l) => !l.inString && isCode(l.text));
     if (!lines.length) continue;
     const { text, starts } = joinWithOffsets(lines);
     if (!text.trim()) continue;
