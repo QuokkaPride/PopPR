@@ -127,7 +127,18 @@ async function handlePullRequest(event: EventPayload, cfg: Config): Promise<void
   const prAuthor = pr.user?.login ?? "";
   if (!headSha) throw new Error(`PR #${number} has no head sha in the payload.`);
 
-  const detection = await detect(number);
+  // Reading the diff and listing the comments are independent and both are
+  // network round trips, so they overlap. On a runner this is most of the job's
+  // wall clock: `detect` shells out to gh twice on its own.
+  //
+  // Promise.all rejects on the first failure, which is the behaviour we want
+  // here. There is no useful partial state: without the diff there is nothing
+  // to say, and without the comments the upsert would post a duplicate rather
+  // than edit.
+  const [detection, comments] = await Promise.all([
+    detect(number),
+    listComments(cfg, number),
+  ]);
   const questions = countQuestions(detection.concepts, cfg);
   const found = detection.concepts.map((c) => c.concept);
   log(
@@ -151,10 +162,8 @@ async function handlePullRequest(event: EventPayload, cfg: Config): Promise<void
     return;
   }
 
-  // One GET feeds both the comment upsert and the certify reconcile. They want
-  // the same list, and the API is the slow part of this job.
-  const comments = await listComments(cfg, number);
-
+  // One GET feeds both the comment upsert and the certify reconcile: they want
+  // the same list.
   const body = detectComment(
     {
       concepts: detection.concepts,
