@@ -15,7 +15,7 @@ import {
   conceptTrends,
 } from "../core/history.js";
 import { Staircase } from "../core/adaptive.js";
-import { detectConcepts } from "../core/concepts.js";
+import { codeFiles, detectConcepts } from "../core/concepts.js";
 import { bankQuestions, certifySet } from "../core/bank.js";
 import { MasteryLoop } from "../core/mastery.js";
 import { certifyComment, STATUS_CONTEXT } from "../core/certify.js";
@@ -203,7 +203,10 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
         // A different selection from the scored run: smaller, and round-robin
         // across concepts so no single regex hit can decide what someone has to
         // master before merging. See certifySet.
-        certifyPool = certifySet(detected, { limit: Number(opts.questions) || 10 });
+        certifyPool = certifySet(detected, {
+          limit: Number(opts.questions) || 10,
+          topUp: { codeFiles: codeFiles(ctx) },
+        });
         if (certifyPool.length === 0) {
           spin.stop();
           console.log(
@@ -213,7 +216,7 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
         }
         staircase.add(certifyPool);
       } else {
-        staircase.add(bankQuestions(detected));
+        staircase.add(bankQuestions(detected, 20, { codeFiles: codeFiles(ctx) }));
       }
       spin.stop();
 
@@ -376,7 +379,7 @@ async function detectOnly(prArg: string | undefined, opts: Record<string, any>) 
   const cwd = process.cwd();
   const ctx = await readDiff({ cwd, pr: opts.local ? undefined : prArg, base: opts.base });
   const detected = detectConcepts(ctx);
-  const questions = bankQuestions(detected);
+  const questions = bankQuestions(detected, 20, { codeFiles: codeFiles(ctx) });
 
   if (opts.json) {
     console.log(

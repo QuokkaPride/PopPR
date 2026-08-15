@@ -142,8 +142,12 @@
         Paste this as a comment on the PR and the <code>poppr/certified</code> check turns green.
       </p>
       <pre id="certify-comment"></pre>
-      <button id="certify-copy">Copy comment</button>
-      <a id="certify-pr" class="linkish" target="_blank" rel="noopener">Open the PR</a>
+      <div class="steps">
+        <button id="certify-copy">Copy comment</button>
+        <a id="certify-pr" class="cta" target="_blank" rel="noopener" hidden>
+          Open the PR and paste it
+        </a>
+      </div>
     </div>
     <p class="hint">A new push resets the check, because the diff it answered for is gone.</p>
   </section>

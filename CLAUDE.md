@@ -21,9 +21,10 @@ mechanics; that one covers the reasoning.
 - Browser version: https://quokkapride.github.io/PopPR/ (public repos, `web/`)
 - A GitHub Action comments on every PR with what it touches and a link to play
 - No users yet, no launch post yet
-- Next up: bank coverage beyond JS/TS, React, Python, Go and SQL. Open source
-  spans every language, so this is now the binding constraint rather than a
-  nice-to-have. See the roadmap in `HANDOFF.md`.
+- Bank covers JS/TS, React, Python, Go, Rust, Java, Ruby, C/C++ and SQL, plus a
+  universal tier for diffs the rules find little in. 328 questions, 108 concepts.
+- Measured on 487 held-out merged PRs from 28 repos: 60% of code PRs match at
+  least one concept, and every code PR gets at least 8 questions.
 
 ## Commands
 
@@ -50,7 +51,8 @@ src/core/          the library: no terminal code, no process.exit, no chalk
   concepts.ts      RULES: regex -> concept slug. Quick mode's whole brain.
   classify.ts      Smart mode: one small AI call -> which concepts matter here
   quiz.ts          Deep mode: AI writes questions about the actual code
-  bank.ts          serves curated questions, shuffles options
+  bank.ts          serves curated questions, shuffles options, tops up thin
+                   diffs from the universal pool
   mastery.ts       the certify loop: re-ask until every question is right
   certify.ts       completion comment, its parser, and the verify decision
   adaptive.ts      Staircase: 2-up/1-down difficulty
@@ -59,7 +61,9 @@ src/core/          the library: no terminal code, no process.exit, no chalk
   scorecard.ts     the shareable emoji grid
   providers/       claude-code | cursor-agent | api-key. One generate() each.
 
-src/bank/          the curated question bank, grouped by area
+src/bank/          the curated question bank, grouped by language
+  universal.ts     general engineering, never detected, used to top up a thin
+                   diff. See the comment at the top before adding to it.
 src/cli/           terminal only: game loop, review screen, commander wiring
   gh-event.ts      the GitHub Action's brain: comment, verify, set the status
   init.ts          `poppr init` writes a consumer's workflow file
@@ -90,8 +94,19 @@ correct answer longer and more specific than the distractors, and readers learn
 to pick the wordiest option without reading any code.
 
 This is not hypothetical. The first hand-written version of this bank had the
-correct answer as the longest option in **81%** of questions. It is now 3%,
-and `npm run audit:bank` fails the build above 35%.
+correct answer as the longest option in **81%** of questions.
+
+Fixing that produced the second form and the third. Correct-is-shortest reached
+**48%** while the first number read a healthy 3%, because writing distractors
+first and matching the correct answer to them pushes it terse. Fixing *that*
+produced a signature phrasing, `", not X"`, in 5 of 21 correct options in one
+file and 0 of 63 distractors: a perfect predictor.
+
+So the gate is general rather than a ban on three specific mistakes. It asks the
+only question that matters: **what would a player who never reads the question
+score?** Chance is 25%, the limit is 37.5%, and the bank sits at 26%. Every
+length check has a ceiling AND a floor, because being reliably un-extreme is as
+strong a tell as being reliably extreme.
 
 When adding questions: **write the three distractors first**, at full
 specificity, then write the correct answer to match their length.
@@ -104,9 +119,27 @@ specificity, then write the correct answer to match their length.
 2. Add the entry to the right file in `src/bank/`.
 3. `npm test`.
 
+The audit enforces both halves of that pairing. A rule with no questions is the
+mirror failure and fails the build too: it names a concept on the review screen
+and has nothing to ask about it.
+
 Every wrong option needs to be a real misconception someone holds, and
 `whyTempting` should name it. That field is what turns a wrong answer into a
 lesson on the review screen.
+
+## Adding a detection rule
+
+Do not write the regex from intuition. Every rule in `concepts.ts` carries a
+measured hit rate in a comment above it, and the ones that are not there were
+measured and rejected: `select!` fires on 0% of merged tokio PRs, and endianness
+on 0.1% of Rust files.
+
+Measure on repos you did not design the rule from. The gap is 15 to 20 points,
+every time. The corpora and harnesses live in the scratchpad, and the shape is:
+pull merged PRs with `gh api`, apply the same added-line and comment filters
+detection uses, then report the share of PRs that fire and how many previously
+dark PRs the rule rescues. A rule below roughly 5% of a language's PRs does not
+pay for the question-writing it obliges.
 
 ## Prose style
 
@@ -121,8 +154,11 @@ contrasts.
 - `--deep` takes ~3 minutes cold even with three parallel batches. The batches
   stream into the live pool so play starts after the first, but this needs real
   work before it is the mode anyone reaches for daily.
-- The bank covers JS/TS, React, Python, Go and SQL. Rust and Java PRs come up
-  empty in quick mode.
+- C/C++ is the weakest language at 47% of code PRs, and half of what fires on it
+  is generic. C's bugs live half in the language and half in the specific data
+  structure being touched, and the second half needs `--deep`.
+- Detection rates measured on the corpus a rule was designed from run 15 to 20
+  points above the same rule on held-out repos. Quote the held-out number.
 - `concepts.ts` regexes are loose by design and do produce false positives.
   That is what `--smart` exists to fix, not something to solve with more regex.
 

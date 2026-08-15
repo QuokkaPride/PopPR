@@ -282,6 +282,17 @@ function dedupe(qs: Question[]): Question[] {
 export interface DistractorAudit {
   /** Share of questions where the correct option is the longest. 0.25 is ideal. */
   longestIsCorrect: number;
+  /**
+   * Share of questions where the correct option is the shortest. 0.25 is ideal.
+   *
+   * The mirror of `longestIsCorrect`, and it exists because measuring only one
+   * direction is how this bank drifted. Writing distractors "at full
+   * specificity" and then matching the correct answer to them pushes the
+   * correct answer terse, and the shipped bank reached 61% shortest while
+   * reporting a healthy 3% longest. "Pick the shortest" was a better strategy
+   * than "pick the longest" ever was, and nothing measured it.
+   */
+  shortestIsCorrect: number;
   /** Mean ratio of correct-option length to mean wrong-option length. ~1.0 ideal. */
   lengthRatio: number;
   /** Share of questions per correct letter. Should be roughly even. */
@@ -289,14 +300,20 @@ export interface DistractorAudit {
 }
 
 /**
- * Measures whether the quiz is gameable without reading the code. A high
- * `longestIsCorrect` means people can score well by picking the wordiest option,
- * which is the single most common way multiple choice quietly becomes worthless.
+ * Measures whether the quiz is gameable without reading the code.
+ *
+ * A high `longestIsCorrect` means people can score by picking the wordiest
+ * option. A high `shortestIsCorrect` means the same trick works in reverse.
+ * Either one makes the quiz stop measuring comprehension while still looking
+ * fine, so both are gated.
  */
 export function auditDistractors(qs: Question[]): DistractorAudit {
-  if (qs.length === 0) return { longestIsCorrect: 0, lengthRatio: 1, letterSpread: {} };
+  if (qs.length === 0) {
+    return { longestIsCorrect: 0, shortestIsCorrect: 0, lengthRatio: 1, letterSpread: {} };
+  }
 
   let longestCount = 0;
+  let shortestCount = 0;
   let ratioSum = 0;
   const letters: Record<string, number> = {};
 
@@ -305,8 +322,9 @@ export function auditDistractors(qs: Question[]): DistractorAudit {
     const wrong = q.options.filter((o) => o.key !== q.correct);
     if (!correct || wrong.length === 0) continue;
 
-    const maxWrong = Math.max(...wrong.map((o) => o.text.length));
-    if (correct.text.length > maxWrong) longestCount++;
+    const wrongLengths = wrong.map((o) => o.text.length);
+    if (correct.text.length > Math.max(...wrongLengths)) longestCount++;
+    if (correct.text.length < Math.min(...wrongLengths)) shortestCount++;
 
     const meanWrong = wrong.reduce((s, o) => s + o.text.length, 0) / wrong.length;
     ratioSum += correct.text.length / meanWrong;
@@ -319,6 +337,7 @@ export function auditDistractors(qs: Question[]): DistractorAudit {
 
   return {
     longestIsCorrect: longestCount / qs.length,
+    shortestIsCorrect: shortestCount / qs.length,
     lengthRatio: ratioSum / qs.length,
     letterSpread: spread,
   };

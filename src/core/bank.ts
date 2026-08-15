@@ -1,7 +1,7 @@
 import type { Evidence, Question } from "./types.js";
 import { MAX_CERTIFY_QUESTIONS } from "./certify.js";
 import type { BankEntry } from "../bank/types.js";
-import { ALL_ENTRIES } from "../bank/index.js";
+import { ALL_ENTRIES, UNIVERSAL_ENTRIES, UNIVERSAL_CONCEPTS } from "../bank/index.js";
 
 /**
  * The curated concept bank.
@@ -12,12 +12,13 @@ import { ALL_ENTRIES } from "../bank/index.js";
  *   1. Quick mode needs no AI, no API key and no network. It is instant.
  *   2. Because each question is written once and reused by everyone, it can be
  *      far better crafted than anything generated per-run.
- *   3. It is the natural place for community contributions — one good PR adds a
+ *   3. It is the natural place for community contributions: one good PR adds a
  *      question every user benefits from.
  *
  * Distractor discipline is the same as for generated questions: every wrong
- * option is a real misconception someone actually holds, and the correct answer
- * is never the longest option.
+ * option is a real misconception someone actually holds, and nothing about the
+ * correct answer other than its content predicts which one it is. See
+ * `scripts/audit-bank.mjs`, which fails the build when something does.
  */
 const BANK = ALL_ENTRIES;
 
@@ -43,13 +44,75 @@ export interface ConceptSelection {
   evidence?: Evidence[];
 }
 
+/**
+ * How a thin selection gets topped up.
+ *
+ * `codeFiles` is the diff's code files, and passing a non-empty list is the
+ * caller asserting that this PR contains code someone wrote. Only then do
+ * universal questions fill the remaining slots. A documentation or lockfile PR
+ * passes an empty list and stays silent, which is the behaviour the project has
+ * always had and the one worth keeping.
+ */
+export interface TopUp {
+  codeFiles: string[];
+}
+
+/**
+ * How many questions a run should have before general ones stop being added.
+ *
+ * A floor rather than a fill. Filling to the limit was the first attempt and it
+ * was wrong: measured over 330 real code PRs it produced a 20-question run for
+ * every diff, 19 of them general on a C PR, which is the tool talking over the
+ * change instead of about it. Eight is a full run at the default three minutes
+ * and leaves a thin diff's own questions as the majority of what gets asked.
+ */
+const UNIVERSAL_FLOOR = 8;
+
 export function bankQuestions(
   concepts: ConceptSelection[],
   limit = 20,
+  topUp?: TopUp,
 ): Question[] {
   const wanted = new Map(concepts.map((c) => [c.concept, c]));
   const matching = BANK.filter((e) => wanted.has(e.concept));
-  return toQuestions(shuffled(matching).slice(0, limit), wanted);
+  const picked = shuffled(matching).slice(0, limit);
+
+  return toQuestions(fillUniversal(picked, limit, topUp, wanted), wanted);
+}
+
+/**
+ * Add general engineering questions when the diff gave the rules little to work
+ * with.
+ *
+ * Measured on 1,579 merged PRs: about a third add code and match one concept or
+ * none, because they are a single guard, a renamed field or one new branch. The
+ * rules are right to stay quiet on those, and a two-question run for a five-file
+ * change reads as the tool having nothing to say.
+ *
+ * These questions carry no evidence line, on purpose. `wanted` has no entry for
+ * their concepts, so `toQuestions` leaves anchors and evidence empty rather than
+ * inventing a line that caused them, and the review screen can say plainly that
+ * they were not triggered by anything in particular.
+ */
+function fillUniversal(
+  picked: BankEntry[],
+  limit: number,
+  topUp: TopUp | undefined,
+  wanted: Map<string, ConceptSelection>,
+): BankEntry[] {
+  if (!topUp?.codeFiles.length) return picked;
+  const floor = Math.min(limit, UNIVERSAL_FLOOR);
+  if (picked.length >= floor) return picked;
+
+  // Detected concepts stay at the front: a question about a line you wrote is
+  // worth more than a good general one, and the clock may not reach the end.
+  const spare = shuffled(UNIVERSAL_ENTRIES.filter((e) => !wanted.has(e.concept)));
+  return [...picked, ...spare.slice(0, floor - picked.length)];
+}
+
+/** Whether a served question came from the universal pool rather than the diff. */
+export function isUniversal(concept: string): boolean {
+  return UNIVERSAL_CONCEPTS.has(concept);
 }
 
 /**
@@ -66,7 +129,7 @@ export function bankQuestions(
  */
 export function certifySet(
   concepts: ConceptSelection[],
-  opts: { limit?: number; perConcept?: number } = {},
+  opts: { limit?: number; perConcept?: number; topUp?: TopUp } = {},
 ): Question[] {
   const perConcept = opts.perConcept ?? 2;
   // Clamped to the shared ceiling: the PR comment quotes this number, so a
@@ -92,7 +155,11 @@ export function certifySet(
     }
   }
 
-  return toQuestions(picked, wanted);
+  // `perConcept` caps how much one concept can contribute, so a diff touching
+  // two concepts gates on four questions however high the limit is set. Topping
+  // up matters more here than in a scored run: the maintainer configured a
+  // number, and the comment quotes it.
+  return toQuestions(fillUniversal(picked, limit, opts.topUp, wanted), wanted);
 }
 
 /**

@@ -108,17 +108,20 @@ No code, no filenames, no repo name. Safe to paste in a work Slack.
 
 The question bank is the easiest place to start, and one good question benefits everyone who runs PopPR. Full guide in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-One rule governs it. Multiple choice rots when the correct answer is longer and more specific than the distractors, because players learn to pick the wordiest option without reading any code. The first hand-written version of this bank failed that way in 81% of questions, so `npm test` enforces the fix:
+One rule governs it: nothing about the correct answer other than its content may predict which one it is. Players find the pattern long before they notice they are using it, and the quiz keeps looking fine while it stops measuring anything. So `npm test` measures what a player who never reads the question would score:
 
 ```
-  correct-is-longest  3%   (limit 35%, random baseline 25%)
-  length ratio        0.92   (limit 1.1)
-  letter spread       A 22%  B 26%  C 22%  D 30%
+  poppr bank audit · 328 questions, 108 concepts
+
+  correct-is-longest  23%   (limit 35%, random baseline 25%)
+  correct-is-shortest 11%   (limit 35%, random baseline 25%)
+  blind strategy      26%   (limit 37.5%, chance 25%)
+  length rank         #1 24%  #2 37%  #3 28%  #4 11%   (uniform is 25% each)
 
   ✓ bank is healthy
 ```
 
-Write your three distractors first, at full specificity, then write the correct answer to match their length.
+That gate has caught this bank three times, each in a different disguise: correct-is-longest at 81%, then correct-is-shortest at 48% after the first fix overcorrected, then a signature phrase appearing in five correct answers and no distractors. Write your three distractors first, at full specificity, then write the correct answer to match.
 
 ## Roadmap
 

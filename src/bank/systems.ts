@@ -7,17 +7,17 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
     prompt:
       "The `status` column is nullable. `SELECT * FROM jobs WHERE status != 'archived'` returns fewer rows than the team expects. What is the cause?",
     options: [
-      { text: "Rows where status is NULL drop out, since NULL != 'archived' is unknown, not true" },
+      { text: "Rows where status is NULL drop out: the comparison is unknown and WHERE keeps only true rows" },
       {
-        text: "Rows where status is NULL are kept by the engine but discarded by the driver's row mapper",
+        text: "Rows where status is NULL are kept by the engine, but the driver's row mapper discards them",
         whyTempting: "It blames the ORM layer for what is plain SQL three-valued logic in the database.",
       },
       {
-        text: "NULL behaves like the empty string here, so those rows compare equal to '' instead",
+        text: "NULL behaves like the empty string here: those rows compare equal to '' instead",
         whyTempting: "Oracle really does treat '' as NULL, which invites the reverse assumption everywhere else.",
       },
       {
-        text: "The inequality is case sensitive, so rows storing 'Archived' or 'ARCHIVED' are filtered out",
+        text: "The `!=` comparison is case sensitive, so rows storing 'Archived' or 'ARCHIVED' are filtered out",
         whyTempting: "Collation genuinely bites string comparisons, but that would add rows here, not remove them.",
       },
     ],
@@ -32,14 +32,14 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
       "A dashboard shows `AVG(rating)` for a product where half the rows have `rating` NULL. Compared with treating missing ratings as 0, what does it return?",
     options: [
       {
-        text: "The same average, because the engine coerces NULL to 0 inside numeric aggregates",
+        text: "The same average, because `AVG` coerces NULL to 0 the way arithmetic does",
         whyTempting: "Arithmetic intuition says a missing number is zero, but SQL treats it as absent instead.",
       },
       {
-        text: "NULL, because a single NULL in the input propagates through the aggregate to the result",
+        text: "NULL: a single NULL in the input propagates through the aggregate to the result",
         whyTempting: "NULL really does propagate through scalar arithmetic, so people extend the rule to aggregates.",
       },
-      { text: "A higher average, because AVG ignores NULL rows instead of counting them as zeros" },
+      { text: "A higher average, because `AVG` skips the NULL rows and divides by the non-NULL count" },
       {
         text: "A lower average, because NULL sorts below every number and drags the computed mean down",
         whyTempting: "NULL does sort at one end in ORDER BY, which suggests it participates in aggregates too.",
@@ -59,7 +59,7 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
         text: "The NULL is skipped, and the remaining ids still filter rows normally",
         whyTempting: "That is how the positive IN case behaves; NOT IN is the asymmetric one.",
       },
-      { text: "With a NULL present, `NOT IN` can only be false or unknown, never true" },
+      { text: "With a NULL present, `NOT IN` yields false or unknown for every row it tests" },
       {
         text: "Only sessions whose own user_id is NULL count as orphans, and NULL never matches",
         whyTempting: "It puts the NULL on the wrong side: the one that matters is inside the subquery.",
@@ -80,18 +80,18 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
       "`email` carries a B-tree index, but `WHERE email LIKE '%@acme.com'` still full-scans the table. What explains it?",
     options: [
       {
-        text: "LIKE never uses an index, so the predicate has to become an equality comparison",
+        text: "`LIKE` never uses an index, so the predicate must become an equality test",
         whyTempting: "LIKE with a fixed prefix does use the index; only the leading wildcard breaks it.",
       },
       {
-        text: "The index stores hashes of the values, so only exact equality can be served from it",
+        text: "The index stores hashes of the values, and only exact equality can be served from a hash",
         whyTempting: "Hash indexes behave exactly like that, which makes the claim feel familiar.",
       },
       {
         text: "The planner skipped the index because the table fits in memory and a scan is cheaper",
         whyTempting: "Small-table scans are a genuinely common reason for ignored indexes, just not this one.",
       },
-      { text: "A B-tree seeks only on a known prefix, and this pattern leaves the prefix open" },
+      { text: "A B-tree seeks only on a known prefix, so a leading wildcard leaves it unbounded" },
     ],
     correct: 3,
     explanation:
@@ -104,16 +104,16 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
       "A table has a composite index on `(tenant_id, created_at)`. A new report filters only on `created_at`. Does that index help the report?",
     options: [
       {
-        text: "Yes, because the index physically contains created_at and any indexed column can be seeked",
+        text: "Yes, because the index physically contains `created_at` and any indexed column can be seeked",
         whyTempting: "Presence in the index feels like coverage, but only the leading column defines the order.",
       },
-      { text: "No, because created_at is not the leading column, so there is no range to seek" },
+      { text: "No, because index entries sort by tenant_id first, so matching created_at rows are scattered" },
       {
-        text: "Yes, because the planner reorders index key columns to match the predicates in the WHERE clause",
+        text: "Yes, because the planner reorders index key columns to match the predicates in the `WHERE` clause",
         whyTempting: "Planners do reorder joins and predicates freely, which makes reordering keys sound plausible.",
       },
       {
-        text: "No, but only because it is not covering; adding an INCLUDE column would make it seekable again",
+        text: "No, but only because it is not covering; an `INCLUDE` column would make it seekable again",
         whyTempting: "Covering indexes remove heap lookups, a real win that does nothing about key order.",
       },
     ],
@@ -127,17 +127,17 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
     prompt:
       "An ingest table sustains 3,000 inserts per second. A PR adds four indexes to speed up an admin screen. What is the production risk?",
     options: [
-      { text: "Every insert now maintains four more trees, pushing write latency and WAL volume up" },
+      { text: "Each insert now updates four more B-trees inside its own transaction, and write latency rises" },
       {
-        text: "The admin reads get slower instead, because the planner must evaluate far more candidate plans",
+        text: "The admin reads get slower instead, because the planner weighs far more candidate plans",
         whyTempting: "Planning cost does grow with index count, but it is microseconds against the write cost.",
       },
       {
-        text: "Inserts begin deadlocking, since each index takes a table-level lock while it is maintained",
+        text: "Inserts begin deadlocking, since every index takes a table-level lock while it is maintained",
         whyTempting: "Index creation can lock the table, so people assume ongoing maintenance does too.",
       },
       {
-        text: "Nothing at insert time, because index maintenance is deferred to the background vacuum process",
+        text: "Nothing at insert time, because index maintenance is deferred to the background `VACUUM` process",
         whyTempting: "Some engines batch merges asynchronously, but mainstream B-tree updates are synchronous.",
       },
     ],
@@ -152,16 +152,16 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
       "An endpoint that renders 50 orders issues 51 queries. It feels instant locally and takes 800ms in production. What best explains the gap?",
     options: [
       {
-        text: "Production data is larger, so each of the 51 queries has to scan many more rows",
+        text: "Production data is larger, and each of the 51 queries has to scan many more rows",
         whyTempting: "Data volume is the usual suspect for prod-only slowness, and it hides the round-trip cost.",
       },
       {
         text: "The production pool is smaller, so the 51 queries spend most of their time queued",
         whyTempting: "Pool starvation is real, though these queries run sequentially on a single connection.",
       },
-      { text: "Each of the 50 lazy loads pays real network latency that a local socket hides" },
+      { text: "A local socket hides it, but each of the 50 lazy loads pays a real network round trip" },
       {
-        text: "The ORM turns off its identity map outside development, so nothing is memoised in prod",
+        text: "The ORM turns off its identity map outside development: nothing is memoised in production",
         whyTempting: "Cache configuration does differ by environment, but 51 round trips are slow regardless.",
       },
     ],
@@ -180,7 +180,7 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
         whyTempting: "Each query does get faster, yet you still pay N round trips to save microseconds each.",
       },
       {
-        text: "Wrap the loop in a transaction so the N queries share one snapshot and one connection",
+        text: "Wrap the loop in a transaction: the N queries then share one snapshot and one connection",
         whyTempting: "A transaction trims per-statement overhead but leaves the number of round trips untouched.",
       },
       {
@@ -199,9 +199,9 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
     prompt:
       "You add `include: [User]` to the order query, yet the profiler still shows one extra query per order. The serializer reads `order.user.company.name`. What is happening?",
     options: [
-      { text: "`company` was never eager-loaded, so touching it lazy-loads once per order" },
+      { text: "`company` was never eager-loaded: reading it triggers one lazy load for each order" },
       {
-        text: "The include is ignored because the association is declared lazy on the model itself",
+        text: "The `include` is ignored, since the association is declared lazy on the model itself",
         whyTempting: "The model default governs only queries that say nothing; an explicit include overrides it.",
       },
       {
@@ -209,7 +209,7 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
         whyTempting: "Cache eviction is plausible, but the extra queries here target a different table entirely.",
       },
       {
-        text: "The join multiplies order rows, and the ORM re-queries each one to deduplicate them",
+        text: "The join multiplies order rows, and the ORM re-queries each one to deduplicate",
         whyTempting: "Joins really do fan out rows in has-many cases, though deduplication happens in memory.",
       },
     ],
@@ -224,12 +224,12 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
       "Under READ COMMITTED two requests each run `SELECT balance`, subtract 10 in application code, then `UPDATE balance = :new`. Both read 100. What is the final balance?",
     options: [
       {
-        text: "80, because the second UPDATE blocks on the row lock and then recomputes from the fresh value",
+        text: "80, because the second `UPDATE` blocks on the row lock and then recomputes from the fresh value",
         whyTempting: "The row lock does serialise the writes, but the value was already computed from a stale read.",
       },
-      { text: "90, because the second write overwrites the first and one decrement disappears" },
+      { text: "90, because the second write stores a value it computed from 100 and one decrement is lost" },
       {
-        text: "80, because the engine detects the write-write conflict and aborts the losing transaction",
+        text: "80: the engine detects the write-write conflict and aborts the losing transaction",
         whyTempting: "That is REPEATABLE READ or SERIALIZABLE behaviour; READ COMMITTED never raises here.",
       },
       {
@@ -248,18 +248,18 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
       "Which change actually prevents that lost update, without raising the isolation level?",
     options: [
       {
-        text: "Re-read the row immediately before writing and compare it with the value read earlier",
+        text: "Re-read the row immediately before writing, and compare it with the value read earlier",
         whyTempting: "It narrows the window to microseconds, which is not the same as closing it.",
       },
       {
-        text: "Wrap both statements in an explicit transaction so they commit or roll back together",
+        text: "Wrap both statements in `BEGIN` and `COMMIT` so they commit or roll back together",
         whyTempting: "Atomicity is not isolation; the two statements already commit together and still lose the update.",
       },
       {
-        text: "Add a unique index covering the account row so the conflicting second write is rejected",
+        text: "Add a unique index on the account row: every conflicting `UPDATE` is then rejected as a duplicate",
         whyTempting: "Constraints reject duplicate keys, not two writers overwriting the same existing row.",
       },
-      { text: "Do it in one statement: `UPDATE accounts SET balance = balance - 10 WHERE id = :id`" },
+      { text: "Move the subtraction into SQL: `UPDATE accounts SET balance = balance - 10 WHERE id = :id`" },
     ],
     correct: 3,
     explanation:
@@ -276,10 +276,10 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
         whyTempting: "Lock-based engines do escalate locking, but MVCC engines surface conflicts as aborts instead.",
       },
       {
-        text: "Statements now read a snapshot taken at transaction start, so rows must be re-read before writing",
+        text: "Statements now read a snapshot taken at transaction start, and rows must be re-read before writing",
         whyTempting: "Snapshot-at-start is accurate, yet re-reading inside the transaction returns that same snapshot.",
       },
-      { text: "Transactions can abort with a serialization failure and have to be retried from the top" },
+      { text: "Transactions can abort at commit with a serialization failure and need retrying from the top" },
       {
         text: "Deadlocks can no longer occur, so an existing deadlock retry loop around the job can be deleted",
         whyTempting: "SERIALIZABLE adds conflict aborts on top of deadlocks; it removes neither failure mode.",
@@ -295,17 +295,17 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
     prompt:
       "A client retries a failing dependency five times with no delay between attempts. The dependency is failing because it is overloaded. What does that policy do?",
     options: [
-      { text: "It multiplies load on the struggling service and makes recovery considerably less likely" },
+      { text: "It multiplies load on the struggling service, because retries land when headroom is lowest" },
       {
-        text: "It has no effect on the dependency, since failed requests are rejected cheaply at its edge",
+        text: "It has no effect on the dependency: failed requests are rejected cheaply at its edge",
         whyTempting: "Rejection is cheap only when it happens at the edge; an overloaded server pays per connection.",
       },
       {
-        text: "It shortens the outage, because the call succeeds as soon as any one instance recovers",
+        text: "It shortens the outage, because the call succeeds as soon as one instance recovers",
         whyTempting: "Retries genuinely do paper over brief blips, which is why they get added without limits.",
       },
       {
-        text: "It shifts the pain to the client only, because server-side load shedding already caps the work",
+        text: "It shifts the pain to the client only, because server-side load shedding already caps every retry",
         whyTempting: "Load shedding exists but is rarely tuned to absorb a synchronised retry storm.",
       },
     ],
@@ -320,10 +320,10 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
       "Four hundred workers all use exponential backoff with the same base and no jitter after a shared dependency blips. What is the failure mode?",
     options: [
       {
-        text: "Backoff grows too quickly, so the tail of the retries lands long after the dependency recovered",
+        text: "Backoff grows too quickly, and the tail of the retries lands long after the dependency recovered",
         whyTempting: "Over-long backoff is a real tuning problem, but it is not what synchronisation produces.",
       },
-      { text: "They retry in synchronised waves, spiking the dependency at each doubling step" },
+      { text: "They retry in synchronised waves, and the dependency takes a fresh spike at each doubling step" },
       {
         text: "The doubling overflows the delay computation, so a portion of the workers never retry at all",
         whyTempting: "Uncapped doubling really can yield absurd delays, though that is a separate bug from herding.",
@@ -344,7 +344,7 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
       "A generic retry wrapper sits around a payment POST. Which of these failures should it NOT retry?",
     options: [
       {
-        text: "A 503 carrying a Retry-After header, because the server has already scheduled the next attempt",
+        text: "A 503 carrying a `Retry-After` header, because the server has already scheduled the next attempt",
         whyTempting: "Retry-After tells you when to retry, not that the server will do the retrying for you.",
       },
       {
@@ -352,10 +352,10 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
         whyTempting: "A handshake failure means no request bytes were sent, making this among the safest retries.",
       },
       {
-        text: "A 429 rate-limit response, because retrying a request the server throttled only adds pressure",
+        text: "A 429 rate-limit response: retrying a request the server throttled only adds pressure",
         whyTempting: "429 is the canonical retryable status; it asks for backoff, not abandonment.",
       },
-      { text: "A 400 naming an invalid field, because an identical request will fail identically" },
+      { text: "A 400 naming an invalid field, because resending the same body earns the same 400 each time" },
     ],
     correct: 3,
     explanation:
@@ -368,14 +368,14 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
       "The update path writes the row to the database and returns. Reads go through a 10-minute cache keyed by row id. What does a user see right after editing?",
     options: [
       {
-        text: "The new value, because the write invalidates every key derived from the same row id",
+        text: "The new value, because the write invalidates every cache key derived from the same row id",
         whyTempting: "Deriving the key from the id is not invalidation; nothing in the write path evicts anything.",
       },
       {
-        text: "The new value for themselves and the old one for everyone else on the cached copy",
+        text: "The new value for themselves, but the old one for everyone else on the cached copy",
         whyTempting: "Read-your-writes holds only if the writer bypasses the cache, which nothing here arranges.",
       },
-      { text: "The old value, for up to ten minutes, depending on which keys are warm" },
+      { text: "Nothing in the write path evicts the key, so the old value stands for up to ten minutes" },
       {
         text: "A mix of both, because most caches evict entries whose backing database row has changed",
         whyTempting: "Some caches offer invalidation hooks, but a plain TTL cache never learns the row changed.",
@@ -391,17 +391,17 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
     prompt:
       "One very hot key expires at the exact moment traffic peaks, behind a plain read-through cache. What happens next?",
     options: [
-      { text: "Every concurrent miss recomputes the same value, and all of them hit the database" },
+      { text: "Each concurrent miss recomputes the same value, and the whole request set lands on the database" },
       {
-        text: "The cache keeps serving the stale value while one request refreshes it in the background",
+        text: "The cache keeps serving the stale value to every caller while one request refreshes it",
         whyTempting: "That is stale-while-revalidate, a pattern you implement rather than a default behaviour.",
       },
       {
-        text: "Only the first request misses, because the cache blocks the rest until the key is populated",
+        text: "Only the first request misses, because the cache blocks every other caller until the key is populated",
         whyTempting: "Some clients do single-flight, but a bare get-then-set read-through takes no lock.",
       },
       {
-        text: "The database absorbs it easily, because identical queries are answered from its own result cache",
+        text: "The database absorbs it easily: identical queries are answered from its own result cache",
         whyTempting: "Query caches exist but are usually disabled, and any write to the table invalidates them.",
       },
     ],
@@ -420,14 +420,14 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
         whyTempting: "That really happens, but a cold cache is correct and self-healing, not stale.",
       },
       {
-        text: "Two writers can invalidate at the same instant, so one of the two updates is silently lost",
+        text: "Two writers can invalidate at the same instant, and one of the two updates is silently lost",
         whyTempting: "It conflates cache ordering with a database lost update, which row locks already prevent.",
       },
       {
         text: "The cluster can replicate the delete after the set, because eviction propagates asynchronously",
         whyTempting: "Replication lag is real, yet the classic hole here opens in the application's own read path.",
       },
-      { text: "A reader can repopulate the key with the pre-update row between the two steps" },
+      { text: "A reader can miss between the two steps: the key is repopulated with the row about to change" },
     ],
     correct: 3,
     explanation:
@@ -440,12 +440,12 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
       "A service calls an internal API with an HTTP client that has no timeout configured. The API begins hanging instead of erroring. What happens to the caller?",
     options: [
       {
-        text: "Requests fail fast with a connection error, since the OS reaps idle sockets after a minute",
+        text: "Requests fail fast with a connection error: the OS reaps idle sockets",
         whyTempting: "TCP keepalive eventually reaps dead peers, but a hung-yet-alive server keeps the socket healthy.",
       },
-      { text: "Callers pile up until threads or pool slots run out and the whole service stalls" },
+      { text: "Callers pile up until threads or pool slots run out, and every endpoint on that pool stalls" },
       {
-        text: "Only that endpoint degrades, because every request runs on its own isolated worker thread",
+        text: "Only that endpoint degrades, because each request runs on its own isolated worker thread",
         whyTempting: "Isolation holds right up until the shared pool is drained, which is what this failure does.",
       },
       {
@@ -468,10 +468,10 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
         whyTempting: "SYN retransmit timing is real, but it makes connects fail sooner rather than voiding the setting.",
       },
       {
-        text: "Retries re-arm the timer, so three attempts can take three times the configured budget",
+        text: "Retries re-arm the timer, and three attempts can take three times the configured budget",
         whyTempting: "Cumulative retry time is a genuine trap; it just cannot stretch a single call to minutes.",
       },
-      { text: "Connect timeout covers only the handshake, and reading the response has no deadline" },
+      { text: "Only the handshake is covered by that setting: the read phase still carries no deadline" },
       {
         text: "DNS resolution runs before the timer starts, so a slow resolver blocks ahead of the connect",
         whyTempting: "DNS does sit outside many clients' connect timeout, which makes this half-right elsewhere.",
@@ -487,13 +487,13 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
     prompt:
       "Service A times out after 1 second. It calls B, which waits up to 30 seconds for C. What goes wrong when C slows to 10 seconds?",
     options: [
-      { text: "B keeps working on requests A has abandoned, burning capacity on dead work" },
+      { text: "B keeps burning capacity on requests A has abandoned, but nothing reads the results" },
       {
-        text: "A retries and B coalesces, so the second attempt is served from B's in-flight request map",
+        text: "A retries, and B coalesces the second attempt into its in-flight request map",
         whyTempting: "Request coalescing is a real mitigation, but nothing in this chain implements it.",
       },
       {
-        text: "B's longer timeout wins, so A's one-second deadline is effectively extended to 30 seconds",
+        text: "B's longer timeout wins: A's one-second deadline is extended to 30 seconds",
         whyTempting: "It inverts the relationship: the shortest deadline in a chain is the one users experience.",
       },
       {
@@ -512,18 +512,18 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
       "An API key was committed in a config file three weeks ago and someone just noticed. What is the necessary first action?",
     options: [
       {
-        text: "Force-push a rewritten history so the commit that contains the key no longer exists",
+        text: "Force-push a rewritten history: the commit holding the key no longer exists",
         whyTempting: "History rewriting belongs in the cleanup, but it cannot recall clones that already fetched it.",
       },
       {
-        text: "Add the file to .gitignore and delete it in a follow-up commit to stop further exposure",
+        text: "Add the file to `.gitignore`, and delete it in a follow-up commit to stop further exposure",
         whyTempting: "That prevents a recurrence and does nothing at all about the key already published.",
       },
       {
         text: "Make the repository private, which takes the key out of the publicly reachable git objects",
         whyTempting: "Visibility changes do not unpublish forks, proxy caches, or copies already scraped.",
       },
-      { text: "Rotate the key, because anyone who cloned the repo already holds the old one" },
+      { text: "Rotate the key, because anyone who cloned or forked the repo already holds the old one" },
     ],
     correct: 3,
     explanation:
@@ -539,13 +539,13 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
         text: "Only in the CI runner's memory, because build args are scoped to the build process",
         whyTempting: "Build args feel ephemeral, yet they are recorded in the image's layer metadata.",
       },
-      { text: "In the image's build history, readable by anyone who can pull that image" },
+      { text: "In the image's build history: layer metadata that anyone who can pull the image can read" },
       {
-        text: "In the final layer only if the Dockerfile writes it into a file on the container's disk",
+        text: "In the final layer, but only if a `RUN` step writes it into a file on the container's disk",
         whyTempting: "Writing it to disk is one leak path, but the argument value is retained either way.",
       },
       {
-        text: "Nowhere persistent, because a multi-stage build discards everything before the final stage",
+        text: "Nowhere persistent, because a multi-stage build always discards the earlier stages",
         whyTempting: "Multi-stage does drop earlier filesystems, while history and args can still be inspected.",
       },
     ],
@@ -560,14 +560,14 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
       "A web bundler is configured to substitute `process.env.STRIPE_SECRET_KEY` into the frontend build so a helper module can read it. What is the exposure?",
     options: [
       {
-        text: "Only server-rendered pages hold it, because the client bundle strips unrecognised env vars",
+        text: "Only server-rendered pages hold it: the client bundle strips unrecognised env vars",
         whyTempting: "Bundlers strip what they were never told to inline; an explicit substitution is not stripped.",
       },
       {
-        text: "It leaks only if the variable name carries the framework's public prefix, such as NEXT_PUBLIC_",
+        text: "It leaks only if the variable name carries the framework's public prefix, such as `NEXT_PUBLIC_`",
         whyTempting: "The prefix governs automatic exposure, not what a hand-written define rule does.",
       },
-      { text: "The value is inlined into the shipped bundle and readable by every visitor" },
+      { text: "The value is inlined as a string literal in the shipped bundle, readable by every visitor" },
       {
         text: "It stays server-side, because environment variables are read from the host at runtime",
         whyTempting: "True of a Node server process, but build-time substitution happens long before runtime.",
@@ -583,9 +583,9 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
     prompt:
       "`GET /invoices/:id` verifies that the caller has a valid session, then loads the invoice by id and returns it. What is the flaw?",
     options: [
-      { text: "Any logged-in user can read any invoice by changing the id in the URL" },
+      { text: "Any logged-in user can read any invoice by changing the id, because no owner check runs" },
       {
-        text: "Unauthenticated callers can read invoices, because the session check runs after the load",
+        text: "Unauthenticated callers can read invoices, since the session check runs after the `SELECT`",
         whyTempting: "Ordering bugs like that exist, but here authentication genuinely happens first.",
       },
       {
@@ -612,12 +612,12 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
         whyTempting: "Token tampering is a different escalation path; here a database column grants the role.",
       },
       {
-        text: "Nothing harmful, because ORMs reject body fields that are absent from the update schema",
+        text: "Nothing harmful, because ORMs reject body fields absent from the update schema",
         whyTempting: "Some ORMs filter unknown keys, but `role` is a real column and passes straight through.",
       },
-      { text: "Set their own `role` to admin by adding that field to the request body" },
+      { text: "Set their own `role` to admin by adding that field to the JSON body of the request" },
       {
-        text: "Only read fields they should not see, because the endpoint echoes the merged record back",
+        text: "Only read fields they should not see: the endpoint echoes the merged record back",
         whyTempting: "It reframes a privilege escalation as a response-shaping problem with a cosmetic fix.",
       },
     ],
@@ -632,18 +632,18 @@ export const SYSTEMS_ENTRIES: BankEntry[] = [
       "Auth middleware is mounted with a path matcher for `/api/*`. A PR adds an admin CSV export at `/internal/reports`. What is the likely outcome?",
     options: [
       {
-        text: "The route inherits the app's default policy, so it fails closed and answers 401 to everyone",
+        text: "The route inherits the app's default policy: it fails closed and answers 401 to everyone",
         whyTempting: "Failing closed is what you want, but path-matched middleware is fail-open by construction.",
       },
       {
-        text: "It is protected anyway, because the framework runs middleware globally and the matcher only orders it",
+        text: "It is protected anyway, because the framework always runs middleware globally and the matcher only orders it",
         whyTempting: "This confuses middleware ordering with middleware scoping: the matcher decides what runs.",
       },
       {
-        text: "It is reachable but harmless, because internal paths are not routable through the public ingress",
+        text: "It is reachable but harmless, because `/internal/*` is not routable through the public ingress",
         whyTempting: "Network obscurity is not access control, and ingress rules are rarely as tight as assumed.",
       },
-      { text: "The new route runs with no authentication, because the matcher never sees it" },
+      { text: "The new route runs with no authentication, because the matcher covers only the `/api/*` prefix" },
     ],
     correct: 3,
     explanation:

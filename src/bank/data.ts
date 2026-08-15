@@ -8,9 +8,11 @@ export const DATA_ENTRIES: BankEntry[] = [
     prompt:
       "`const copy = [...rows]` and then `copy[0].status = 'done'`. What is true of `rows` afterwards?",
     options: [
-      { text: "rows[0].status is 'done' too: both arrays hold the same element objects" },
       {
-        text: "rows is untouched; spreading an array clones every element it copies into it",
+        text: "rows[0].status is 'done' too, because both arrays hold references to the same objects",
+      },
+      {
+        text: "rows is untouched: spreading an array clones every element it copies into it",
         whyTempting:
           "The new array really is new, and people extend that newness one level down to the elements.",
       },
@@ -20,7 +22,7 @@ export const DATA_ENTRIES: BankEntry[] = [
           "V8 does have copy-on-write array internals, but that never protects the objects you stored.",
       },
       {
-        text: "rows[0] is untouched but rows.length changed, since spread shares the backing store",
+        text: "rows[0] is untouched but rows.length changed, because spread shares the original backing store",
         whyTempting:
           "Sharing the backing store is the one thing spread does not do: the array itself is genuinely new.",
       },
@@ -41,7 +43,7 @@ export const DATA_ENTRIES: BankEntry[] = [
           "That is exactly the bug if you push `form` directly, but the spread does give each snapshot its own top-level object.",
       },
       {
-        text: "Object spread skips properties holding objects, so address was never captured",
+        text: "Object spread skips every property holding an object, so address was never captured",
         whyTempting:
           "Spread copies every own enumerable property, object-valued ones included: it just copies the reference.",
       },
@@ -63,12 +65,12 @@ export const DATA_ENTRIES: BankEntry[] = [
       "A service hands callers `{ ...config }` so they cannot mutate its cached config. A caller sets `cfg.flags.beta = true` and every other caller sees it. Smallest correct fix?",
     options: [
       {
-        text: "Freeze the copy with Object.freeze({ ...config }) before returning it",
+        text: "Freeze the copy with Object.freeze({ ...config }) before returning it to callers",
         whyTempting:
           "Object.freeze is shallow too: it blocks writes to top-level keys while cfg.flags stays fully writable.",
       },
       {
-        text: "Return Object.assign({}, config), which copies own properties recursively",
+        text: "Return `Object.assign({}, config)`, which copies own properties recursively",
         whyTempting:
           "Object.assign behaves exactly like spread, one level deep, so it changes nothing here.",
       },
@@ -77,7 +79,7 @@ export const DATA_ENTRIES: BankEntry[] = [
         whyTempting:
           "Fewer copies is the opposite of what is needed; sharing is what caused the leak of the mutation.",
       },
-      { text: "Return structuredClone(config) so the nested objects are copied too" },
+      { text: "Return structuredClone(config), which copies nested objects instead of sharing" },
     ],
     correct: 3,
     explanation:
@@ -96,7 +98,7 @@ export const DATA_ENTRIES: BankEntry[] = [
         whyTempting:
           "reverse does return an array, and returning something feels like producing something new: but it is the same array.",
       },
-      { text: "The original order, because each call flips the shared module array" },
+      { text: "The original order: reverse mutates in place, so the second call flips it back" },
       {
         text: "It throws, because module exports are read-only bindings that cannot be mutated",
         whyTempting:
@@ -122,7 +124,7 @@ export const DATA_ENTRIES: BankEntry[] = [
         whyTempting:
           "Ascending numeric is what a comparator would give, and the default looks numeric on single-digit fixtures.",
       },
-      { text: "[100, 25, 80]: the default sort compares stringified values" },
+      { text: "[100, 25, 80]: the default sort stringifies each element before comparing" },
       {
         text: "[100, 80, 25]: sort defaults to descending, so slice takes the largest three",
         whyTempting:
@@ -174,18 +176,18 @@ export const DATA_ENTRIES: BankEntry[] = [
       "A lint rule bans `==` everywhere. A reviewer defends one use: `if (opts.timeout == null)`. Is that defensible?",
     options: [
       {
-        text: "No: it also matches 0 and the empty string, which are valid timeouts",
+        text: "No: it matches 0 and the empty string, and those are valid timeouts",
         whyTempting:
           "Those values are falsy, and `== null` gets mentally merged with a plain `if (!opts.timeout)` check.",
       },
-      { text: "Yes: `== null` matches null and undefined, and nothing else" },
+      { text: "Yes: `== null` is true for null and undefined, and coerces nothing else" },
       {
         text: "No: `== null` is true for any object whose valueOf returns null",
         whyTempting:
           "valueOf is consulted when comparing objects to primitives, but null and undefined skip that path entirely.",
       },
       {
-        text: "Yes, but only because TypeScript narrows it; in plain JS it matches NaN too",
+        text: "Yes, but only because TypeScript narrows it; in plain JS it matches `NaN` too",
         whyTempting:
           "Narrowing is a pleasant side effect, but the runtime semantics are identical in plain JS and NaN is not involved.",
       },
@@ -256,13 +258,13 @@ export const DATA_ENTRIES: BankEntry[] = [
     prompt: "A test asserts `expect(0.1 + 0.2).toBe(0.3)` and fails. What is the right fix?",
     options: [
       {
-        text: "Round both sides with toFixed(2) and compare the resulting strings",
+        text: "Round both sides with `toFixed(2)` and compare the resulting strings",
         whyTempting:
           "It usually passes, but you are now asserting on formatting, and toFixed brings its own rounding edges.",
       },
-      { text: "Compare with a tolerance, e.g. `toBeCloseTo(0.3)`" },
+      { text: "Compare with a tolerance: `toBeCloseTo(0.3)` checks how far apart they are" },
       {
-        text: "Use toEqual, which compares numbers structurally instead of bit by bit",
+        text: "Use toEqual: it compares numbers structurally instead of bit by bit",
         whyTempting:
           "toEqual exists for deep structural comparison; on two plain numbers it is the very same comparison.",
       },
@@ -282,9 +284,9 @@ export const DATA_ENTRIES: BankEntry[] = [
     prompt:
       "An upstream returns `{ \"id\": 9007199254740993 }`. Your Node service parses it, stores it and passes it on: and support reports two accounts merging. What happened?",
     options: [
-      { text: "JSON.parse produced the nearest double, silently changing the id" },
+      { text: "JSON.parse produced the nearest double, so two distinct ids collapsed to one" },
       {
-        text: "Node truncates integers above 2^53 to 32 bits when parsing JSON numbers",
+        text: "Node parses the digits fine but truncates integers above 2^53 to 32 bits",
         whyTempting:
           "32-bit truncation is real in JavaScript, but it applies to bitwise operators, never to number parsing.",
       },
@@ -294,7 +296,7 @@ export const DATA_ENTRIES: BankEntry[] = [
           "stringify does use exponent notation for extreme magnitudes, yet the precision was already lost at parse time.",
       },
       {
-        text: "The id overflows into a negative number, the usual signed 64-bit wraparound",
+        text: "The id overflows into a negative number: the usual signed 64-bit wraparound",
         whyTempting:
           "Doubles do not wrap; they drop low-order bits and stay positive, which is why the corruption is so quiet.",
       },
@@ -319,7 +321,7 @@ export const DATA_ENTRIES: BankEntry[] = [
         whyTempting:
           "MAX_SAFE_INTEGER is about 9e15, thousands of times larger than the boundary that actually bites here.",
       },
-      { text: "Bitwise operators convert operands to 32-bit ints, so the result wraps" },
+      { text: "Every bitwise operator coerces to a 32-bit int, so the result wraps" },
       {
         text: "`|` on a non-integer operand throws a RangeError in strict mode",
         whyTempting:
@@ -344,7 +346,7 @@ export const DATA_ENTRIES: BankEntry[] = [
           "Sorted output is what you want from a cache key and some libraries do it, but JSON.stringify never sorts.",
       },
       {
-        text: "Numbers are serialised with locale-dependent separators across regions",
+        text: "Numbers are serialised with locale-dependent decimal separators in some regions",
         whyTempting:
           "JSON number formatting is locale-independent; toLocaleString is the API that varies by region.",
       },
@@ -365,19 +367,19 @@ export const DATA_ENTRIES: BankEntry[] = [
     prompt:
       "You deep-clone with `JSON.parse(JSON.stringify(node))` on a tree whose children each hold a `parent` back-reference. What happens?",
     options: [
-      { text: "stringify throws a TypeError on the cycle before anything is cloned" },
+      { text: "`JSON.stringify` hits the cycle but throws a TypeError before anything is cloned" },
       {
-        text: "The parent links are dropped and the rest of the tree clones cleanly",
+        text: "The parent links are dropped, and the rest of the tree clones cleanly",
         whyTempting:
           "JSON really does silently drop functions and undefined, so people expect the same leniency for cycles.",
       },
       {
-        text: "It recurses until the call stack overflows, hanging the request",
+        text: "It recurses into the back-reference but overflows the call stack, hanging the request",
         whyTempting:
           "A hand-rolled recursive clone would blow the stack, but stringify detects the cycle and fails fast instead.",
       },
       {
-        text: "It clones fine, since JSON.stringify tracks seen objects and emits a $ref marker",
+        text: "It clones fine, since JSON.stringify tracks seen objects, and it emits a $ref marker",
         whyTempting:
           "$ref cycle encoding is a convention in libraries such as flatted, not anything JSON.stringify does.",
       },
@@ -392,19 +394,19 @@ export const DATA_ENTRIES: BankEntry[] = [
     prompt:
       "You replace a JSON round-trip with `structuredClone(entity)`. Dates now survive, but `clone instanceof User` is false and a later call throws DataCloneError. Why?",
     options: [
-      { text: "structuredClone copies data, not prototypes, and refuses to clone functions" },
+      { text: "structuredClone copies data onto a plain object and refuses to clone functions" },
       {
         text: "structuredClone only copies enumerable own properties, so instance methods are skipped",
         whyTempting:
           "It does copy own enumerable data properties, but the lost instanceof is about the prototype link, not about enumerability.",
       },
       {
-        text: "DataCloneError means the object exceeded the structured-clone size limit",
+        text: "`DataCloneError` means the object exceeded the structured-clone size limit",
         whyTempting:
           "DataCloneError signals an unclonable value such as a function or a DOM node, not an object that is too big.",
       },
       {
-        text: "You must list the class in the transfer option for its prototype to survive",
+        text: "You must name the class in the transfer option, and its prototype then survives",
         whyTempting:
           "The transfer list moves ArrayBuffers and similar; there is no way to register a class with the algorithm.",
       },
@@ -422,12 +424,12 @@ export const DATA_ENTRIES: BankEntry[] = [
       "A websocket handler does `messages.push(msg)` into a module-level array so the UI can 'replay recent messages'. What is the failure mode?",
     options: [
       {
-        text: "The array hits the engine's maximum length and pushes start throwing",
+        text: "The array hits the engine's maximum length: pushes past 2^32 entries throw",
         whyTempting:
           "There is a maximum array length near 2^32, but the process dies of memory pressure long before reaching it.",
       },
       {
-        text: "Older entries are collected once nothing references them individually",
+        text: "Older entries are collected, because nothing references them individually",
         whyTempting:
           "The array itself is a reference to every entry, so no message ever becomes unreachable.",
       },
@@ -436,7 +438,7 @@ export const DATA_ENTRIES: BankEntry[] = [
         whyTempting:
           "Compaction moves live objects to reduce fragmentation; it never deletes data that is still reachable.",
       },
-      { text: "The array grows for the life of the process until it exhausts the heap" },
+      { text: "The array grows until it exhausts the heap, because nothing removes an entry" },
     ],
     correct: 3,
     explanation:
@@ -453,7 +455,7 @@ export const DATA_ENTRIES: BankEntry[] = [
         whyTempting:
           "The client does reuse the counter object; it is the set of distinct label combinations that multiplies.",
       },
-      { text: "Each distinct label value creates a new time series that is kept forever" },
+      { text: "Each distinct label value creates a time series, and the client never evicts them" },
       {
         text: "High-cardinality labels are rejected by the server, so the client retries the scrape",
         whyTempting:
@@ -475,14 +477,14 @@ export const DATA_ENTRIES: BankEntry[] = [
     prompt:
       "You bound a cache at 10,000 entries by deleting the oldest key whenever size exceeds the cap. Memory still grows without limit in production. Which explanation fits best?",
     options: [
-      { text: "Entries are bounded in count but not in size, and values vary hugely" },
+      { text: "The cap counts entries, but a single cached value can weigh many megabytes" },
       {
         text: "Map.delete leaves the key slot allocated, so the internal table never shrinks",
         whyTempting:
           "A Map does not eagerly shrink its bucket array, but that overhead is itself bounded by the entry cap.",
       },
       {
-        text: "Deleting during iteration skips entries, so eviction quietly stops running",
+        text: "Deleting during iteration skips entries, so eviction stops running",
         whyTempting:
           "Map iteration copes with deletion, and even skipped evictions would leave the entry count bounded.",
       },
@@ -505,7 +507,7 @@ export const DATA_ENTRIES: BankEntry[] = [
       "Your team agrees to store all money as integer cents. Which operation still needs a deliberate decision?",
     options: [
       {
-        text: "Adding two amounts, which overflows once totals pass 2^31 cents",
+        text: "Adding two amounts, because totals overflow past 2^31 cents",
         whyTempting:
           "JavaScript numbers are doubles and stay exact to 2^53, roughly $90 trillion, so ordinary sums are safe.",
       },
@@ -515,7 +517,7 @@ export const DATA_ENTRIES: BankEntry[] = [
           "Integers below 2^53 compare exactly; the float rules only bite once a fractional part appears.",
       },
       {
-        text: "Serialising to JSON, which converts integers above 999999 to exponent notation",
+        text: "Serialising to JSON, because stringify writes integers above 999999 in exponent form",
         whyTempting:
           "stringify only uses exponent form for extreme magnitudes, far beyond any realistic cents value.",
       },
@@ -532,7 +534,7 @@ export const DATA_ENTRIES: BankEntry[] = [
       "`(1.005).toFixed(2)` returns '1.00' rather than '1.01', and an invoice line comes out a cent short. What is going on?",
     options: [
       {
-        text: "toFixed uses banker's rounding, so exact halves go to the even digit",
+        text: "`toFixed` rounds half to even, so 1.005 lands on 1.00",
         whyTempting:
           "Banker's rounding would also yield 1.00 here, so the answer looks confirmed: but toFixed rounds half away from zero.",
       },
@@ -541,7 +543,7 @@ export const DATA_ENTRIES: BankEntry[] = [
         whyTempting:
           "Truncation predicts 1.00 too, which makes it hard to rule out without a second example such as (1.006).toFixed(2).",
       },
-      { text: "The nearest double to 1.005 is just below it, so rounding down is right" },
+      { text: "The nearest double to 1.005 sits below rather than above, so rounding down is right" },
       {
         text: "toFixed returns a string, and the string comparison hides the missing cent",
         whyTempting:
@@ -563,7 +565,7 @@ export const DATA_ENTRIES: BankEntry[] = [
         whyTempting:
           "Many languages do round half to even, but JS Math.round rounds half toward +Infinity.",
       },
-      { text: "The three shares add up to 9999 or 10001 cents, not 10000" },
+      { text: "The split comes up a cent short, because each share rounds to 3333 cents" },
       {
         text: "total / 3 loses precision past MAX_SAFE_INTEGER, corrupting large charges",
         whyTempting:
