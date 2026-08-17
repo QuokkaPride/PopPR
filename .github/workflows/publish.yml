@@ -26,7 +26,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write # to move the v1 tag after publishing; see the last step
   id-token: write # the OIDC token npm checks; without it, no trusted publish
 
 jobs:
@@ -63,3 +63,23 @@ jobs:
       # No NODE_AUTH_TOKEN. The OIDC identity above is the credential, and npm
       # attaches a provenance attestation because it can prove the origin.
       - run: npm publish
+
+      # Move `v1` to what we just published.
+      #
+      # `poppr init` writes `uses: QuokkaPride/PopPR@v1` into every consumer's
+      # workflow, and by GitHub Actions convention that major tag floats: it has
+      # to be repointed at each release or the ref does not resolve and their
+      # first run fails with "Unable to resolve action".
+      #
+      # This is a workflow step rather than a line in the release checklist
+      # because the checklist version was already tried. Every release from
+      # 0.1.3 to 0.4.0 shipped without the tag, `@v1` 404'd for a year, and no
+      # consumer workflow could ever have run. A human step that is skipped
+      # silently is not a step.
+      - name: Point v1 at this release
+        if: github.event_name == 'release'
+        run: |
+          major="v$(node -p "require('./package.json').version.split('.')[0]")"
+          git tag -f "$major"
+          git push -f origin "refs/tags/$major"
+          echo "$major now points at $(git rev-parse HEAD)"

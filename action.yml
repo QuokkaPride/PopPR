@@ -16,10 +16,20 @@ description: Pop quiz on the pull request you just shipped, posted as a comment 
 #    that from here, and the failure is a 403 deep in a log, so the README
 #    leads with it.
 #
-# The version is pinned to the 0.3 line rather than left floating. `npx poppr`
+# The version is pinned to a minor line rather than left floating. `npx poppr`
 # with no range would pull a future major into someone else's CI on the day it
 # publishes, and an action that changes behaviour without the consumer editing
 # anything is an action they stop trusting.
+#
+# Two layers of pinning, and they do different jobs. The consumer pins `@v1`,
+# which is a moving tag by GitHub Actions convention: it follows the latest v1
+# release, so bug fixes reach them without an edit. This npm range is the second
+# layer, and it is what stops a package change from arriving before the action
+# has been released with it. Bump it in the same commit that the release tags.
+#
+# `gh-event` never takes the AI path: it calls detectConcepts and bankQuestions
+# and nothing else, so moving this pin carries detection fixes without carrying
+# the by-default backend behaviour the CLI gained in 0.4.
 
 branding:
   icon: help-circle
@@ -75,4 +85,4 @@ runs:
         POPPR_CERTIFY: ${{ inputs.certify }}
         POPPR_QUESTIONS: ${{ inputs.questions }}
         POPPR_TIME: ${{ inputs.time }}
-      run: npx --yes @quokkapride/poppr@0.3 gh-event
+      run: npx --yes @quokkapride/poppr@0.4 gh-event

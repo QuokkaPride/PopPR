@@ -40,7 +40,12 @@ Then add a `CHANGELOG.md` entry under the new version. Lead with what changes fo
 someone already using it, not with the internals. If a default moved, say so in
 the first line.
 
-Commit both, plus `package-lock.json`.
+If `gh-event.ts` or anything it imports changed, bump the npm range in
+`action.yml` to the new minor line in the same commit. That range is what decides
+which package version a consumer's CI actually runs, and leaving it behind means
+the fix ships to npm and never reaches the Action.
+
+Commit those, plus `package-lock.json`.
 
 ## 4. Cut the release
 
@@ -57,7 +62,30 @@ does this in one expression is a parse error on the BSD `sed` macOS ships.
 The tag must be `v` plus the exact `package.json` version. `publish.yml` compares
 them and fails the release rather than publishing a mismatch.
 
-## 5. Watch it land
+## 5. Move the major tag, or the Action stays broken
+
+**This step is not optional and has been missed before.** `poppr init` writes
+`uses: QuokkaPride/PopPR@v1` into every consumer's workflow, and `ACTION_REF` in
+`src/core/certify.ts` is the single source of that string. `v1` is a **moving**
+tag by GitHub Actions convention: it has to be force-updated to each release, or
+consumers pin a ref that does not resolve and their first run fails with
+`Unable to resolve action`.
+
+```bash
+git tag -f v1 && git push -f origin v1
+gh api "repos/QuokkaPride/PopPR/git/ref/tags/v1" --jq .object.sha   # must print the release commit
+```
+
+Releases went out from 0.1.3 to 0.4.0 without this, so `@v1` 404'd the whole
+time and no consumer workflow could ever have run. Nothing in `publish.yml`
+checks it, because that workflow only knows about npm. Verify the ref resolves
+before you consider the release done.
+
+If the major version ever moves past 1, update `ACTION_REF` and this step
+together, and leave the old major tag where it is so existing workflows keep
+working.
+
+## 6. Watch it land
 
 ```bash
 gh run watch "$(gh run list --workflow Publish --limit 1 --json databaseId -q '.[0].databaseId')"
@@ -71,7 +99,7 @@ curl -s https://registry.npmjs.org/@quokkapride/poppr \
   | python3 -c "import json,sys; d=json.load(sys.stdin); v=d['dist-tags']['latest']; print(v, 'provenance:', bool(d['versions'][v]['dist'].get('attestations')))"
 ```
 
-## If the publish step fails
+## 7. If the publish step fails
 
 `npm error 404` or `E401` on a trusted publish usually means the Trusted Publisher
 entry is missing or stale. It is configured once per package on npmjs.com under

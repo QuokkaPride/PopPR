@@ -258,6 +258,17 @@ whole pitch.
 
 ## Gotchas learned the hard way
 
+- **There are two versioned things, and shipping one is not shipping both.** The
+  npm package is what `npx` and the Action download. The `v1` git tag is what
+  consumers pin in `uses:`. `poppr init` writes `QuokkaPride/PopPR@v1` from
+  `ACTION_REF`, and by GitHub Actions convention that major tag *floats* and has
+  to be repointed at every release. It never was, from 0.1.3 through 0.4.0, so
+  `@v1` returned 404 and no consumer workflow could ever have run: the entire
+  maintainer adoption path was dead while npm looked healthy. `publish.yml` now
+  moves the tag itself, because a checklist step that is skipped silently is not
+  a step. There is a third pin inside `action.yml`, the npm range the action
+  runs; bump it whenever `gh-event.ts` or its imports change, or a fix reaches
+  npm and never reaches CI.
 - **`npm view <pkg> || echo AVAILABLE` is not a name check.** A network timeout
   prints "AVAILABLE" and you publish against a name someone already owns. Hit
   `https://registry.npmjs.org/<pkg>` directly. A real 404 means free, anything
