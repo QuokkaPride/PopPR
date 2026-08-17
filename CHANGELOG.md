@@ -1,5 +1,59 @@
 # Changelog
 
+## 0.5.0
+
+**The AI questions now actually reach you.** They never had. Measured on the
+shipped 0.4.0 code, the first generated batch landed at 221.9s against a
+180-second clock, so it arrived 42 seconds after the game had already ended.
+Three things were wrong at once:
+
+- The first batch now asks the fastest model on your backend rather than
+  whichever one you have configured. `claude-code` was passing no `--model` at
+  all, so everyone inherited their slowest. Same input, back to back: 263s on
+  the default model, 139s on the fast one.
+- The concept-widening call had never added a single question. Bank ids were
+  minted per call, so a second draw always collided with the first and every
+  widened question was dropped. Measured: added 0 of 8, every run.
+- Nothing said so. A backend still working when the clock stopped printed
+  nothing at all, which is how a feature that had never once worked survived a
+  year.
+
+**You can now see which questions are which.** Generated ones are marked `✦ ai`
+on the question row as you play, and the review says how many were written
+about your diff.
+
+**And you can wait for them.** Generation cannot be made reliably fast: across
+runs the first batch landed at 40s, 114s, 122s and past 180s, on diffs from
+eleven lines to thirty-two files. Asking for fewer questions saved eight
+seconds; trimming the diff made it slower. So the wait is a choice offered
+before the clock starts, and doing nothing starts the run.
+
+**`--certify` is now `--require`.** It describes what the maintainer is turning
+on rather than what happens to the contributor, and it already matched
+`poppr init --require`. The old flag still works. `action.yml` still honours
+`certify:` too, because an input GitHub does not recognise is silently ignored,
+and dropping it would switch a merge gate off without failing anywhere.
+
+**`--deep` and `--smart` are gone.** `--smart` was hidden, strictly worse than
+the default, and broke `--quick`'s "no AI, no network, no key" promise by
+forcing a provider call. `--deep` meant "tell me when there is no backend",
+which every run now does.
+
+**A required quiz defaults to five questions**, down from ten.
+
+**The PR comment is shorter.** It no longer lists every detected concept, which
+was what the regexes matched rather than what you are asked. It leads with the
+terminal, because that is the only one that can write questions about your
+code, and keeps the browser one click away.
+
+Also fixed: a correct answer flashed for 350ms, too fast to register, and now
+holds for 700ms and shows the points earned. `--quick` made a 288ms network
+call on every run for a label in a local file. `readDiff` ran three git
+invocations in series that share no state. `cursor-agent` silently discarded
+the fast-model request. The browser gated a required quiz on ten questions
+while every other default said five.
+
+
 ## 0.4.0
 
 **AI-written questions are now on by default, and still never required.** If you

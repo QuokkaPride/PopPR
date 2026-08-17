@@ -1,6 +1,6 @@
 {
   "name": "@quokkapride/poppr",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Understand your own AI slop. A three-minute quiz on the engineering concepts in your PR, generated locally from your diff. Optionally required before merge.",
   "keywords": [
     "pull-request",

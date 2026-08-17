@@ -96,4 +96,4 @@ runs:
         POPPR_CERTIFY: ${{ inputs.require || inputs.certify }}
         POPPR_QUESTIONS: ${{ inputs.questions }}
         POPPR_TIME: ${{ inputs.time }}
-      run: npx --yes @quokkapride/poppr@0.4 gh-event
+      run: npx --yes @quokkapride/poppr@0.5 gh-event
