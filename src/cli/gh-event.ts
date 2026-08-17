@@ -80,8 +80,6 @@ interface EventPayload {
 }
 
 interface Detection {
-  label: string;
-  files: number;
   concepts: DetectedConcept[];
   /** Files adding real code, which is what licenses a general-engineering top-up. */
   codeFiles: string[];
@@ -238,8 +236,6 @@ async function detect(number: number): Promise<Detection> {
   try {
     const ctx = await readDiff({ pr: String(number) });
     return {
-      label: ctx.label,
-      files: ctx.files.length,
       concepts: detectConcepts(ctx),
       codeFiles: codeFiles(ctx),
     };
@@ -247,7 +243,7 @@ async function detect(number: number): Promise<Detection> {
     const message = (err as Error)?.message ?? "";
     if (/no reviewable/i.test(message)) {
       log(`#${number} has no reviewable changes once generated files are filtered`);
-      return { label: `PR #${number}`, files: 0, concepts: [], codeFiles: [] };
+      return { concepts: [], codeFiles: [] };
     }
     throw err;
   }

@@ -49,10 +49,13 @@ program
   .option("--quick", "the question bank only: no AI, no network, no key")
   .option("-t, --time <seconds>", "how long the run lasts", "180")
   .option(
-    "--certify",
+    "--require",
     "answer every question correctly, untimed after the clock, then post the completion comment",
   )
-  .option("--questions <n>", "how many questions a --certify run has to get right", "5")
+  // The original spelling, kept working and out of the help. `--require` says
+  // what it does to a repo; `--certify` said what it does to you.
+  .addOption(new Option("--certify", "alias for --require").hideHelp())
+  .option("--questions <n>", "how many questions a --require run has to get right", "5")
   .option("--provider <name>", "claude-code | cursor-agent | anthropic | openai | openrouter | ollama")
   .option("--stats", "show your concept mastery over time and exit")
   .option(
@@ -120,6 +123,10 @@ function minTtyHint(): string {
 }
 
 async function main(prArg: string | undefined, opts: Record<string, any>) {
+  // `--require` is the spelling; `--certify` is the old one and still works.
+  // Normalised once here so nothing below has to know there are two.
+  opts.certify = Boolean(opts.require || opts.certify);
+
   if (opts.stats) return showStats();
   if (opts.detect) return detectOnly(prArg, opts);
 
@@ -135,7 +142,7 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
   if (opts.certify && opts.local) {
     console.error(
       pc.yellow(
-        "\n  Certification binds to a PR's head commit, and --local has none. Give it a PR.\n",
+        "\n  A required quiz binds to a PR's head commit, and --local has none. Give it a PR.\n",
       ),
     );
     process.exit(1);
@@ -267,7 +274,10 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
         onBatch(batch, index, ms) {
           pending--;
           staircase.add(batch);
-          aiArrivals.push({ index, ms, count: batch.length });
+          // Only a batch that produced something counts as an arrival. A
+          // failed one calls onBatch([]) as well, and counting that released
+          // everyone who chose to wait, with nothing to show them.
+          if (batch.length) aiArrivals.push({ index, ms, count: batch.length });
           if (staircase.remaining > 0 || pending === 0) firstBatch?.();
         },
         onBatchError(err, index, ms) {
@@ -299,14 +309,10 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
       spin.stop();
 
       if (staircase.remaining === 0) {
-        // Only advertise a backend to someone who asked for one: see aiDemanded.
-        console.log(
-          pc.yellow(`\n  No bank concepts matched ${ctx.label}.\n`) +
-            (backendMissing && aiDemanded
-              ? pc.dim("  An AI backend would write questions about it: `npm i -g @anthropic-ai/claude-code`,\n") +
-                pc.dim("  or set ANTHROPIC_API_KEY.\n")
-              : ""),
-        );
+        // No AI advice here on purpose: reaching this point with no backend
+        // means the bank seeded nothing, and that path already threw for anyone
+        // who asked for a provider by name. The condition was unsatisfiable.
+        console.log(pc.yellow(`\n  No bank concepts matched ${ctx.label}.\n`));
         return;
       }
     } else {
@@ -350,7 +356,7 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
     // The label names what this run is, not what was asked for. A
     // keyless machine on the default path plays a curated run and the banner has
     // to say "quick", or the first thing PopPR tells that user is untrue.
-    const mode = !wantsAi || backendMissing ? "quick" : "deep";
+    const mode = !wantsAi || backendMissing ? "bank" : "bank + ai";
     // Before the clock starts, not during: waiting is only tolerable when it is
     // not costing you the run. Skipped entirely when no backend was found.
     if (wantsAi && !backendMissing) {
@@ -366,6 +372,13 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
       streak: currentStreak(history),
       moreComing: () => pending > 0,
     });
+
+    // Read the outcome BEFORE cancelling. terminateAll kills the children, the
+    // providers reject on the non-zero exit, and generationFailed is then set by
+    // our own kill: the commonest path of all, clock beats model, reported
+    // itself as "the AI backend failed partway" and told the user to retry.
+    const aiWritten = aiArrivals.reduce((n, a) => n + a.count, 0);
+    const aiStillRunning = pending > 0;
 
     // The clock has stopped, so a batch that lands now is worth nothing. Kill
     // the children rather than only swallowing their rejection: a ChildProcess
@@ -402,7 +415,6 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
     // rather than from how the calls ended. A batch that landed after the clock
     // stopped is not a success from where the player is sitting.
     const aiAsked = result.answered.filter((a) => a.question.source === "ai").length;
-    const aiWritten = aiArrivals.reduce((n, a) => n + a.count, 0);
 
     if (aiAsked > 0) {
       console.log(pc.dim(`  ${aiAsked} of these were written about your diff.\n`));
@@ -412,39 +424,21 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
       );
     } else if (backendMissing) {
       console.log(pc.dim("  All from the question bank. No AI backend here.\n"));
-    } else if (wantsAi) {
-      // Backend present, nothing landed, nothing errored: the calls were still
-      // running when the clock stopped. This case printed nothing at all, which
-      // is how a feature that never once worked went unnoticed for a year.
+    } else if (aiStillRunning) {
       console.log(
         pc.dim("  All from the question bank. The AI questions were still being written\n") +
-          pc.dim("  when the clock stopped. `POPPR_DEBUG=1` shows when each batch landed.\n"),
+          pc.dim("  when the clock stopped. Press w at the start to wait for them.\n"),
+      );
+    } else if (generationFailed) {
+      console.log(
+        pc.yellow("  All from the question bank: the AI backend failed.\n") +
+          pc.dim("  Run it again, or `--quick` to skip the attempt entirely.\n"),
       );
     }
 
     if (process.env.POPPR_DEBUG) {
       for (const a of aiArrivals) console.log(pc.dim(`  [debug] batch ${a.index}: ${a.count} questions at ${(a.ms / 1000).toFixed(1)}s`));
       for (const e of aiErrors) console.log(pc.yellow(`  [debug] batch ${e.index} failed at ${(e.ms / 1000).toFixed(1)}s: ${e.message}`));
-    }
-
-    // A backend that is missing or slow costs you the written-for-you questions
-    // and not the run. Say which one you got, because the two are not the same
-    // product, but say it only to someone who was expecting the other one.
-    if (generationFailed) {
-      console.log(
-        pc.yellow("  Those were curated bank questions: the AI backend failed partway.\n") +
-          pc.dim("  Run it again, or `--quick` to skip the attempt entirely.\n"),
-      );
-    } else if (backendMissing && aiDemanded) {
-      console.log(
-        pc.yellow("  Those were curated bank questions.\n") +
-          pc.dim("  Deep mode needs an AI backend: `npm i -g @anthropic-ai/claude-code`, or set ANTHROPIC_API_KEY.\n"),
-      );
-    } else if (wantsAi && pending > 0) {
-      console.log(
-        pc.dim("  The clock beat the model: some questions written for this PR arrived too late.\n") +
-          pc.dim("  Run it again and they will be waiting, or give it longer with `-t 300`.\n"),
-      );
     }
 
     if (opts.certify) {
@@ -706,6 +700,8 @@ program.parseAsync(process.argv).catch((err: unknown) => {
  * Only shown when a backend exists and nothing has arrived yet. A keyless run
  * never sees it, which is what keeps first play free of setup.
  */
+const GRACE_MS = 15_000;
+
 function offerToWait(landed: () => boolean): Promise<void> {
   return new Promise((resolve) => {
     if (!process.stdin.isTTY) return resolve();
@@ -723,6 +719,7 @@ function offerToWait(landed: () => boolean): Promise<void> {
       clearInterval(tick);
       process.stdin.off("keypress", onKey);
       process.stdin.setRawMode(wasRaw ?? false);
+      process.stdin.pause();
       process.stdout.write("\r" + " ".repeat(72) + "\r");
       resolve();
     };
@@ -735,7 +732,13 @@ function offerToWait(landed: () => boolean): Promise<void> {
 
     const tick = setInterval(() => {
       if (landed()) return finish();
-      if (!waiting) return;
+      // Starting is the default, so doing nothing has to mean starting. Without
+      // this, reading the prompt and not acting blocked until a batch landed,
+      // which is measured at 40s to past 180s.
+      if (!waiting) {
+        if (Date.now() - startedAt > GRACE_MS) finish();
+        return;
+      }
       const s = Math.round((Date.now() - startedAt) / 1000);
       process.stdout.write(
         `\r  ${pc.cyan("✦")} ${pc.dim(`waiting… ${s}s   any key to start anyway`)}   `,

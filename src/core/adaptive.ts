@@ -27,11 +27,7 @@ export class Staircase {
     }
   }
 
-  /** Concepts already in the pool, so a later add can skip what it duplicates. */
-  get concepts(): string[] {
-    return [...new Set(this.pool.map((q) => q.concept))];
-  }
-
+  
   get remaining(): number {
     return this.pool.filter((q) => !this.served.has(q.id)).length;
   }

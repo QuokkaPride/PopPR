@@ -166,35 +166,7 @@ export interface DetectData {
   questions: number;
 }
 
-/**
- * Wrap a snippet as inline code, surviving whatever is inside it.
- *
- * Real code lines contain backticks (every template literal does), and a plain
- * single-backtick span would end early and spill raw markdown into the comment.
- * The fix is markdown's own: delimit with one more backtick than the longest
- * run inside, and pad with spaces so a leading or trailing backtick still
- * belongs to the content.
- */
-function inlineCode(text: string): string {
-  const longest = (text.match(/`+/g) ?? []).reduce((n, run) => Math.max(n, run.length), 0);
-  if (longest === 0) return `\`${text}\``;
-  const fence = "`".repeat(longest + 1);
-  return `${fence} ${text} ${fence}`;
-}
 
-/**
- * One table cell of untrusted text.
- *
- * On a fork PR every one of these strings is attacker-controlled: git happily
- * accepts a filename containing a backtick, a pipe or an HTML tag, and this
- * comment is posted with the BASE repo's token. A path escaping its code span
- * would put attacker-authored markup into a comment that appears to come from
- * the project. `inlineCode` picks a fence longer than any backtick run inside,
- * and the pipe escape keeps the row from splitting into extra columns.
- */
-function cell(text: string): string {
-  return inlineCode(text.replace(/\|/g, "\\|"));
-}
 
 /**
  * The comment posted on every PR.
@@ -239,7 +211,7 @@ export function detectComment(
   // which is not the set the player is asked, and it was the longest thing here.
   const n = data.concepts.length;
   out.push(
-    `**PopPR** · ${data.questions} question${data.questions === 1 ? "" : "s"} on this diff, from ${n} concept${n === 1 ? "" : "s"} detected in your changes.`,
+    `**PopPR** · ${data.questions} question${data.questions === 1 ? "" : "s"}, from ${n} concept${n === 1 ? "" : "s"} found in this diff.`,
   );
 
   // The terminal leads, because it is the only one that can write questions
@@ -249,24 +221,24 @@ export function detectComment(
   out.push(
     "",
     "```bash",
-    `npx ${pkg} ${opts.number}${opts.certify ? " --certify" : ""}`,
+    `npx ${pkg} ${opts.number}${opts.certify ? " --require" : ""}`,
     "```",
     "",
-    "Runs the question bank straight away. If you have Claude Code, Cursor or an AI API key, it also has one write questions about your exact diff and mixes them in.",
+    "Uses our question bank, plus AI-written questions about your specific code if you have Claude Code, Cursor or an AI API key.",
   );
 
   if (opts.certify) {
     out.push(
       "",
-      `This repo asks contributors to certify. Answer under the clock, then keep going untimed until every question is right. You cannot fail it and the number of tries is never published. Post the comment it gives you at the end and the \`${STATUS_CONTEXT}\` check turns green.`,
+      `This repo requires a passing quiz before merge. Answer under the clock, then keep going untimed until every question is right. No score to beat, and tries are never published, so you cannot fail it. Post the comment it gives you and \`${STATUS_CONTEXT}\` turns green.`,
     );
   }
 
   out.push(
     "",
-    `<details><summary>No terminal, or happy with bank questions? Play in your browser.</summary>`,
+    `<details><summary>Want the question bank only, without the AI questions? Play in your browser.</summary>`,
     "",
-    `**[Take the quiz](${quizUrl(opts)})** · nothing to install, no account. Asks from the question bank only, so no AI-written questions. Public repositories only: the browser cannot read a private diff.`,
+    `**[Take the quiz](${quizUrl(opts)})** · Nothing to install, no account, public repositories only.`,
     "</details>",
   );
 

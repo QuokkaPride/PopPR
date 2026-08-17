@@ -83,13 +83,15 @@ function whyLine(question: Question): string[] {
  * every row would be noise; the absence of a tag is the answer for them. Cyan
  * because it is the thing worth noticing, dim would bury it.
  */
+const AI_TAG = "  ✦ ai";
+
 function sourceTag(q: Question): string {
   return q.source === "ai" ? `  ${pc.cyan("✦ ai")}` : "";
 }
 
 /** The same tag without colour, so the column padding can be measured. */
 function plainSourceTag(q: Question): string {
-  return q.source === "ai" ? "  ✦ ai" : "";
+  return q.source === "ai" ? AI_TAG : "";
 }
 
 function difficultyTag(d: string): string {
@@ -173,7 +175,7 @@ export async function runGame(
       staircase.record(correct);
 
       if (outcome.chosen !== null) {
-        await flash(correct, question, combo);
+        await flash(correct, question, combo, event.points);
       // Reading the answer is not play time, so give the clock back.
       if (!correct) deadline += Date.now() - beforeFlash - outcome.ms;
       }
@@ -365,10 +367,20 @@ function askOne(
   });
 }
 
+/** How long a correct answer stays on screen. See flash(). */
+const HIT_MS = 700;
+
 /**
- * A hit is 350ms of pure signal with nothing to read, which is what keeps the
- * run moving. The explanation is held back to the review screen: making someone
+ * A hit is pure signal with nothing to read, which is what keeps the run
+ * moving. The explanation is held back to the review screen: making someone
  * read a paragraph while their clock runs kills the flow state the timer built.
+ *
+ * It was 350ms, and that was too quick to register. The frame is a full repaint
+ * onto a cleared screen, so the eye has to find a small glyph in an empty field,
+ * and 350ms is barely longer than one of the four repaints a second the game
+ * does anyway. It reads as a flicker between two questions rather than as an
+ * answer. 700ms plus the points earned gives it something to land on: the
+ * number confirms the score moved, which the tick alone does not.
  *
  * A miss is the one moment with something worth reading, and it used to print
  * the bare letter of the right answer for half a second, which is unreadable
@@ -376,15 +388,21 @@ function askOne(
  * keypress, with the clock stopped by the caller: the timer is meant to measure
  * whether you know the answer, not how fast you read.
  */
-function flash(correct: boolean, question: Question, combo: number): Promise<void> {
+function flash(
+  correct: boolean,
+  question: Question,
+  combo: number,
+  points = 0,
+): Promise<void> {
   if (correct) {
     draw([
       "",
       "",
-      `        ${pc.bold(pc.green("✓"))}`,
+      `        ${pc.bold(pc.green("✓"))}   ${pc.cyan(`+${points}`)}`,
+      "",
       combo >= 3 ? `        ${pc.yellow(`${combo} in a row`)}` : "",
     ]);
-    return new Promise((r) => setTimeout(r, 350));
+    return new Promise((r) => setTimeout(r, HIT_MS));
   }
 
   const right = question.options.find((o) => o.key === question.correct);

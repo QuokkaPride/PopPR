@@ -20,6 +20,6 @@ const forced = Boolean(process.env.FORCE_COLOR) || process.argv.includes("--colo
 // that has told us it cannot render escape codes.
 const usable = Boolean(process.stdout.isTTY) && process.env.TERM !== "dumb";
 
-export const colorEnabled = !disabled && (forced || usable || Boolean(process.env.CI));
+const colorEnabled = !disabled && (forced || usable || Boolean(process.env.CI));
 
 export default pc.createColors(colorEnabled);

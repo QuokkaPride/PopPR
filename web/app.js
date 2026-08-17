@@ -235,7 +235,7 @@ async function load(target, opts) {
   // must not be able to monopolise that.
   const topUp = { codeFiles: codeFiles(ctx) };
   const questions = opts.certify
-    ? certifySet(detected, { limit: opts.questions || 10, topUp })
+    ? certifySet(detected, { limit: opts.questions || 5, topUp })
     : bankQuestions(detected, 20, topUp);
 
   if (!questions.length) {

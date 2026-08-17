@@ -215,15 +215,6 @@ function coerce(parsed: unknown): Question[] {
   return out;
 }
 
-export async function generateQuiz(
-  ctx: PrContext,
-  provider: Provider,
-  opts: GenerateOptions = {},
-): Promise<Question[]> {
-  const raw = await provider.generate(buildPrompt(ctx, opts), { speed: opts.speed });
-  return dedupe(coerce(extractJson(raw)));
-}
-
 /**
  * Archetype buckets for parallel generation. Splitting the work three ways cuts
  * wall-clock roughly threefold, and as a bonus each call produces a more
@@ -318,16 +309,6 @@ export async function generateQuizStreaming(
 
 function normalize(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().slice(0, 80);
-}
-
-function dedupe(qs: Question[]): Question[] {
-  const seen = new Set<string>();
-  return qs.filter((q) => {
-    const key = normalize(q.prompt);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
 }
 
 export interface DistractorAudit {
