@@ -76,10 +76,20 @@ jobs:
       # 0.1.3 to 0.4.0 shipped without the tag, `@v1` 404'd for a year, and no
       # consumer workflow could ever have run. A human step that is skipped
       # silently is not a step.
-      - name: Point v1 at this release
+      - name: Point the action's major tag at this release
         if: github.event_name == 'release'
         run: |
-          major="v$(node -p "require('./package.json').version.split('.')[0]")"
+          # From ACTION_REF, not from package.json. The action's major version is
+          # an API promise to consumers who wrote `uses: ...@v1`; the package's
+          # is 0.x semver. Deriving it from the package shipped a `v0` tag on the
+          # 0.5.0 release and left v1 stale, which is the exact breakage this
+          # step exists to prevent.
+          ref=$(node -p "require('./dist/core/certify.js').ACTION_REF")
+          major="${ref##*@}"
+          case "$major" in
+            v[0-9]*) ;;
+            *) echo "ACTION_REF is '$ref', expected something ending in @vN" >&2; exit 1 ;;
+          esac
           git tag -f "$major"
           git push -f origin "refs/tags/$major"
           echo "$major now points at $(git rev-parse HEAD)"

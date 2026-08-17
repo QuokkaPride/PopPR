@@ -72,9 +72,14 @@ consumers pin a ref that does not resolve and their first run fails with
 `Unable to resolve action`.
 
 ```bash
-git tag -f v1 && git push -f origin v1
 gh api "repos/QuokkaPride/PopPR/git/ref/tags/v1" --jq .object.sha   # must print the release commit
 ```
+
+`publish.yml` moves it for you, deriving the name from `ACTION_REF` rather than
+from the package version. **Verify it anyway.** On 0.5.0 the step reported
+success and created a `v0` tag, because it took the major from `package.json`
+and this is a 0.x package. It is the one release step whose failure is silent
+on the release itself and total for every consumer.
 
 Releases went out from 0.1.3 to 0.4.0 without this, so `@v1` 404'd the whole
 time and no consumer workflow could ever have run. Nothing in `publish.yml`
