@@ -89,6 +89,8 @@ poppr                  # your latest PR
 poppr 142              # a specific PR
 poppr --local          # your current branch, no GitHub needed
 poppr --quick          # the question bank only: no AI, no network, no key
+poppr 142 --require    # answer every question right before the check turns green
+poppr --provider <name>  # pick a backend: claude-code, cursor-agent, anthropic, openai, ollama
 poppr --detect         # what would it ask? no game, no clock
 poppr practice         # drill your weak concepts, no PR involved
 poppr --stats          # what you are getting better at
