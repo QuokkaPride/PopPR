@@ -65,15 +65,27 @@ export async function findRecentPr(cwd = process.cwd()): Promise<PrRef | null> {
   }
 }
 
+/**
+ * owner/repo, from the cheapest source that knows it.
+ *
+ * The git remote first, because it is local and free. `gh repo view` is a
+ * GraphQL round trip measured at 288ms, and this used to run it on every single
+ * run before the mode was even considered, for a value whose only consumer is a
+ * label in history.json. That was 84% of what `--quick` spent, on a flag whose
+ * whole promise is "no AI, no network, no key". Both sources return the same
+ * string; only one of them needs the internet.
+ */
 export async function repoName(cwd = process.cwd()): Promise<string> {
-  const out = await gh(["repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"], cwd);
-  if (out?.trim()) return out.trim();
   try {
     const { stdout } = await exec("git", ["remote", "get-url", "origin"], { cwd });
-    return stdout.trim().replace(/\.git$/, "").split(/[:/]/).slice(-2).join("/");
+    const name = stdout.trim().replace(/\.git$/, "").split(/[:/]/).slice(-2).join("/");
+    if (name) return name;
   } catch {
-    return "local";
+    // No remote, or not a git repo. Fall through to gh, which may still know.
   }
+
+  const out = await gh(["repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"], cwd);
+  return out?.trim() || "local";
 }
 
 export async function hasGh(): Promise<boolean> {

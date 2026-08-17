@@ -8,7 +8,11 @@ export function cursorAgentProvider(
 ): Provider {
   return {
     name: "cursor-agent",
-    generate(prompt: string): Promise<string> {
+    // `opts` is accepted and its `speed` deliberately ignored: cursor-agent
+    // exposes no model selector, so the opening batch gets the same model as
+    // the rest. Declared rather than omitted, because a narrower signature is
+    // still assignable to Provider and the discard would be invisible.
+    generate(prompt: string, _opts): Promise<string> {
       return new Promise((resolve, reject) => {
         const child = spawnCli(bin, resolved, ["--print", "--output-format", "text"]);
 

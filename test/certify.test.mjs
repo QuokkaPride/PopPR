@@ -241,41 +241,14 @@ function unsealedSpan(markdown) {
   return null;
 }
 
-const HOSTILE = [
-  'src/a`<img src=x onerror=alert(1)>|evil.ts',
-  "a``b<script>alert(1)</script>.ts",
-  "trailing`.ts",
-  "```.ts",
-];
-
-for (const path of HOSTILE) {
-  test(`a filename containing backticks cannot break out of its code span: ${path.slice(0, 24)}`, () => {
-    const body = detectComment(
-      {
-        concepts: [
-          {
-            concept: "promise-all",
-            files: [path],
-            evidence: [{ file: path, line: 1, text: "const x = `tpl ${y}` | pipe" }],
-          },
-        ],
-        questions: 1,
-      },
-      { owner: "o", repo: "r", number: 1, certify: true },
-    );
-
-    assert.equal(unsealedSpan(body), null, "a code span was left unsealed");
-
-    // The comment no longer renders filenames at all: the per-concept table was
-    // dropped because it promised a question set the player is not guaranteed to
-    // see. That removes this injection surface rather than escaping it, so the
-    // test now pins the absence. If a filename is ever rendered again, cell()
-    // is still there and this has to go back to checking the escaping.
-    assert.ok(!body.includes(path), "a contributor-controlled filename reached the comment");
-    assert.ok(!/<img|<script/i.test(body), "raw HTML reached the comment");
-  });
-}
-
+/**
+ * The comment used to render filenames into a table, and a contributor could
+ * put markdown or HTML in a filename. The table is gone, so the escaping it
+ * needed is gone with it and the property is now structural: detectComment
+ * interpolates only counts and the PR number. One test pins that; the four
+ * hostile-filename cases that used to live here asserted it four times over a
+ * string built entirely from literals.
+ */
 test("no filename from the diff is rendered into the comment", () => {
   const body = detectComment(
     { concepts: [{ concept: "promise-all", files: ["src/a.ts"], evidence: [{ file: "src/a.ts", line: 3, text: "await Promise.all(x)" }] }], questions: 1 },

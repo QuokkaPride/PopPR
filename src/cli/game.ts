@@ -83,13 +83,15 @@ function whyLine(question: Question): string[] {
  * every row would be noise; the absence of a tag is the answer for them. Cyan
  * because it is the thing worth noticing, dim would bury it.
  */
+const AI_TAG = "  ✦ ai";
+
 function sourceTag(q: Question): string {
   return q.source === "ai" ? `  ${pc.cyan("✦ ai")}` : "";
 }
 
 /** The same tag without colour, so the column padding can be measured. */
 function plainSourceTag(q: Question): string {
-  return q.source === "ai" ? "  ✦ ai" : "";
+  return q.source === "ai" ? AI_TAG : "";
 }
 
 function difficultyTag(d: string): string {

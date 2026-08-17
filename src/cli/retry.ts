@@ -121,7 +121,10 @@ function closingLine(correct: number, total: number): string {
 function rawKeys(): () => void {
   readline.emitKeypressEvents(process.stdin);
   const wasRaw = process.stdin.isRaw;
-  process.stdin.setRawMode(true);
+  // Guarded for the same reason confirmKey is: setRawMode does not exist on a
+  // non-TTY stdin. Both callers check first today, which makes this belt and
+  // braces rather than a fix, and it is one new call site from mattering.
+  if (process.stdin.isTTY) process.stdin.setRawMode(true);
   enterFullScreen();
   return () => {
     leaveFullScreen();

@@ -166,35 +166,7 @@ export interface DetectData {
   questions: number;
 }
 
-/**
- * Wrap a snippet as inline code, surviving whatever is inside it.
- *
- * Real code lines contain backticks (every template literal does), and a plain
- * single-backtick span would end early and spill raw markdown into the comment.
- * The fix is markdown's own: delimit with one more backtick than the longest
- * run inside, and pad with spaces so a leading or trailing backtick still
- * belongs to the content.
- */
-function inlineCode(text: string): string {
-  const longest = (text.match(/`+/g) ?? []).reduce((n, run) => Math.max(n, run.length), 0);
-  if (longest === 0) return `\`${text}\``;
-  const fence = "`".repeat(longest + 1);
-  return `${fence} ${text} ${fence}`;
-}
 
-/**
- * One table cell of untrusted text.
- *
- * On a fork PR every one of these strings is attacker-controlled: git happily
- * accepts a filename containing a backtick, a pipe or an HTML tag, and this
- * comment is posted with the BASE repo's token. A path escaping its code span
- * would put attacker-authored markup into a comment that appears to come from
- * the project. `inlineCode` picks a fence longer than any backtick run inside,
- * and the pipe escape keeps the row from splitting into extra columns.
- */
-function cell(text: string): string {
-  return inlineCode(text.replace(/\|/g, "\\|"));
-}
 
 /**
  * The comment posted on every PR.
