@@ -44,6 +44,15 @@ export interface Evidence {
 
 export interface Question {
   id: string;
+  /**
+   * Where this question came from, shown on the question row as you play.
+   *
+   * A real field rather than an id prefix: `coerce` in quiz.ts takes `q.id`
+   * straight from model output, so a model that emits `"id": "bank1"` would
+   * produce a bank-shaped id for a generated question. Optional because
+   * questions persisted before this existed have no source.
+   */
+  source?: "bank" | "ai";
   difficulty: Difficulty;
   archetype: Archetype;
   /**

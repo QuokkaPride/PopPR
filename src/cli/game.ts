@@ -76,6 +76,22 @@ function whyLine(question: Question): string[] {
   return [`  ${pc.dim("↳")} ${pc.cyan(where)}  ${pc.dim(code)}`];
 }
 
+/**
+ * Which half of the product this question came from.
+ *
+ * Only the AI ones are marked. Bank questions are the common case and a tag on
+ * every row would be noise; the absence of a tag is the answer for them. Cyan
+ * because it is the thing worth noticing, dim would bury it.
+ */
+function sourceTag(q: Question): string {
+  return q.source === "ai" ? `  ${pc.cyan("✦ ai")}` : "";
+}
+
+/** The same tag without colour, so the column padding can be measured. */
+function plainSourceTag(q: Question): string {
+  return q.source === "ai" ? "  ✦ ai" : "";
+}
+
 function difficultyTag(d: string): string {
   if (d === "hard") return pc.red(d);
   if (d === "medium") return pc.yellow(d);
@@ -285,7 +301,9 @@ function askOne(
         "",
         `  ${pc.dim("Q" + ctx.number)} ${difficultyTag(question.difficulty)} ${pc.dim(
           "· " + question.concept,
-        )}${" ".repeat(Math.max(1, 44 - question.concept.length))}${pc.dim("+" + value)}`,
+        )}${sourceTag(question)}${" ".repeat(
+          Math.max(1, 44 - question.concept.length - plainSourceTag(question).length),
+        )}${pc.dim("+" + value)}`,
         ...whyLine(question),
         "",
       ];

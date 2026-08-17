@@ -232,6 +232,10 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
     // staircase because the staircase serves what the clock reaches, and the
     // claim covers every question whether the clock reached it or not.
     let certifyPool: Question[] = [];
+    /** When each generated batch landed, and what failed. Drives the summary line. */
+    const aiArrivals: Array<{ index: number; ms: number; count: number }> = [];
+    const aiErrors: Array<{ index: number; ms: number; message: string }> = [];
+
     /** No AI backend on this machine. Ordinary, and only worth saying if asked. */
     let backendMissing = false;
     /** A backend was found and generation still failed. Always worth saying. */
@@ -296,10 +300,17 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
 
       generation = generateQuizStreaming(ctx, backend.provider, {
         reviewConcepts: review,
-        onBatch(batch) {
+        onBatch(batch, index, ms) {
           pending--;
           staircase.add(batch);
+          aiArrivals.push({ index, ms, count: batch.length });
           if (staircase.remaining > 0 || pending === 0) firstBatch?.();
+        },
+        onBatchError(err, index, ms) {
+          // Kept even though the run plays on. A backend that crashes and one
+          // that is merely slow used to be the same event here, so "no AI
+          // questions" was the only thing the run could ever report.
+          aiErrors.push({ index, ms, message: (err as Error)?.message ?? String(err) });
         },
       }).catch((err) => {
         firstBatch?.();
@@ -425,6 +436,27 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
       console.log(
         pc.dim(`  Could not write ${process.env.POPPR_HOME ?? "~/.poppr"}, so this run was not recorded.\n`),
       );
+    }
+
+    // What actually happened to the AI half, counted from what reached the pool
+    // rather than from how the calls ended. A batch that landed after the clock
+    // stopped is not a success from where the player is sitting.
+    const aiAsked = result.answered.filter((a) => a.question.source === "ai").length;
+    const aiWritten = aiArrivals.reduce((n, a) => n + a.count, 0);
+
+    if (aiAsked > 0) {
+      console.log(pc.dim(`  ${aiAsked} of these were written about your diff.\n`));
+    } else if (aiWritten > 0) {
+      console.log(
+        pc.dim(`  ${aiWritten} questions were written about your diff, too late to be asked.\n`),
+      );
+    } else if (backendMissing && !aiDemanded) {
+      console.log(pc.dim("  All from the question bank. No AI backend here.\n"));
+    }
+
+    if (process.env.POPPR_DEBUG) {
+      for (const a of aiArrivals) console.log(pc.dim(`  [debug] batch ${a.index}: ${a.count} questions at ${(a.ms / 1000).toFixed(1)}s`));
+      for (const e of aiErrors) console.log(pc.yellow(`  [debug] batch ${e.index} failed at ${(e.ms / 1000).toFixed(1)}s: ${e.message}`));
     }
 
     // A backend that is missing or slow costs you the written-for-you questions

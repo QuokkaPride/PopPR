@@ -195,6 +195,7 @@ function coerce(parsed: unknown): Question[] {
 
     out.push({
       id: q.id || `q${i + 1}`,
+      source: "ai" as const,
       difficulty: DIFFICULTIES.includes(q.difficulty as Difficulty)
         ? (q.difficulty as Difficulty)
         : "medium",
@@ -242,12 +243,18 @@ const BATCHES: string[][] = [
 export async function generateQuizStreaming(
   ctx: PrContext,
   provider: Provider,
-  opts: GenerateOptions & { onBatch?: (qs: Question[], index: number) => void } = {},
+  opts: GenerateOptions & {
+    /** `ms` is milliseconds since generation started, so a caller can report arrival. */
+    onBatch?: (qs: Question[], index: number, ms: number) => void;
+    onBatchError?: (err: unknown, index: number, ms: number) => void;
+  } = {},
 ): Promise<Question[]> {
   const perBatch = Math.max(3, Math.ceil((opts.poolSize ?? 15) / BATCHES.length));
 
   const all: Question[] = [];
   const seen = new Set<string>();
+
+  const startedAt = Date.now();
 
   const jobs = BATCHES.map(async (only, index) => {
     try {
@@ -266,11 +273,15 @@ export async function generateQuizStreaming(
         return true;
       });
       all.push(...fresh);
-      opts.onBatch?.(fresh, index);
+      opts.onBatch?.(fresh, index, Date.now() - startedAt);
       return fresh;
-    } catch {
-      // One failed batch shouldn't sink the run: the other two still play.
-      opts.onBatch?.([], index);
+    } catch (err) {
+      // One failed batch shouldn't sink the run: the other two still play. But
+      // it must not look like a batch that returned nothing, which is what this
+      // swallow used to do: a crashed backend and a slow one were the same
+      // event to every caller, and the run could only report "no AI questions".
+      opts.onBatchError?.(err, index, Date.now() - startedAt);
+      opts.onBatch?.([], index, Date.now() - startedAt);
       return [];
     }
   });
