@@ -66,7 +66,7 @@ jobs:
       - uses: QuokkaPride/PopPR@v1
 ```
 
-To require a passing quiz before merge, add `statuses: write` to `permissions` and `with: { certify: true }` to the step.
+To require a passing quiz before merge, add `statuses: write` to `permissions` and `with: { require: true }` to the step.
 
 If you do have Node, `npx @quokkapride/poppr init` writes that file for you, and `init --require` writes the gating version.
 
@@ -99,7 +99,7 @@ poppr --stats          # what you are getting better at
 ```yaml
 - uses: QuokkaPride/PopPR@v1
   with:
-    certify: true      # require a passing quiz, report poppr/quiz-passed. default false
+    require: true      # require a passing quiz, report poppr/quiz-passed. default false
     questions: 5       # how many questions that quiz holds. default 5
     time: 180          # seconds on the timed first pass. default 180
 ```

@@ -49,10 +49,13 @@ program
   .option("--quick", "the question bank only: no AI, no network, no key")
   .option("-t, --time <seconds>", "how long the run lasts", "180")
   .option(
-    "--certify",
+    "--require",
     "answer every question correctly, untimed after the clock, then post the completion comment",
   )
-  .option("--questions <n>", "how many questions a --certify run has to get right", "5")
+  // The original spelling, kept working and out of the help. `--require` says
+  // what it does to a repo; `--certify` said what it does to you.
+  .addOption(new Option("--certify", "alias for --require").hideHelp())
+  .option("--questions <n>", "how many questions a --require run has to get right", "5")
   .option("--provider <name>", "claude-code | cursor-agent | anthropic | openai | openrouter | ollama")
   .option("--stats", "show your concept mastery over time and exit")
   .option(
@@ -120,6 +123,10 @@ function minTtyHint(): string {
 }
 
 async function main(prArg: string | undefined, opts: Record<string, any>) {
+  // `--require` is the spelling; `--certify` is the old one and still works.
+  // Normalised once here so nothing below has to know there are two.
+  opts.certify = Boolean(opts.require || opts.certify);
+
   if (opts.stats) return showStats();
   if (opts.detect) return detectOnly(prArg, opts);
 
@@ -135,7 +142,7 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
   if (opts.certify && opts.local) {
     console.error(
       pc.yellow(
-        "\n  Certification binds to a PR's head commit, and --local has none. Give it a PR.\n",
+        "\n  A required quiz binds to a PR's head commit, and --local has none. Give it a PR.\n",
       ),
     );
     process.exit(1);

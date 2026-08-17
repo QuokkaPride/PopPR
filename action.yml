@@ -12,7 +12,7 @@ description: Pop quiz on the pull request you just shipped, posted as a comment 
 #
 # 2. Composite actions cannot declare `permissions`, so the consumer's workflow
 #    has to carry them: `pull-requests: write` for the comment, plus
-#    `statuses: write` once certify is on. GitHub gives us no way to demand
+#    `statuses: write` once the quiz is required. GitHub gives us no way to demand
 #    that from here, and the failure is a 403 deep in a log, so the README
 #    leads with it.
 #
@@ -36,7 +36,7 @@ branding:
   color: purple
 
 inputs:
-  certify:
+  require:
     description: >-
       Ask the PR author to answer every question about their diff correctly.
       On its own this only asks: the run posts a comment and reports the
@@ -46,9 +46,16 @@ inputs:
       deliberately rather than one they inherit from turning a flag on.
     required: false
     default: "false"
+  certify:
+    description: >-
+      Deprecated spelling of `require`. Still honoured, because workflow files
+      in other repositories already say it and silently dropping it would turn
+      a merge gate off without telling anyone.
+    required: false
+    default: "false"
   questions:
     description: >-
-      How many questions the certify set holds. Five is a few minutes and is
+      How many questions the required set holds. Five is a few minutes and is
       spread across concepts rather than piled onto one.
     required: false
     default: "5"
@@ -82,7 +89,11 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.token }}
         GH_REPO: ${{ github.repository }}
-        POPPR_CERTIFY: ${{ inputs.certify }}
+        # Both spellings. `require` is the name; `certify` is what workflows in
+        # the wild already say, and an ignored input would silently switch a
+        # maintainer's merge gate off rather than failing loudly, which is the
+        # worst way for a rename to land.
+        POPPR_CERTIFY: ${{ inputs.require || inputs.certify }}
         POPPR_QUESTIONS: ${{ inputs.questions }}
         POPPR_TIME: ${{ inputs.time }}
       run: npx --yes @quokkapride/poppr@0.4 gh-event

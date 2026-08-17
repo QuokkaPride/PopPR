@@ -19,7 +19,7 @@ function workflow(certify: boolean): string {
   // Only the `with:` block differs. An empty `with:` is legal YAML and pure
   // noise, so the whole block goes when there is nothing to configure.
   const step = certify
-    ? `      - uses: ${ACTION_REF}\n        with:\n          certify: true\n`
+    ? `      - uses: ${ACTION_REF}\n        with:\n          require: true\n`
     : `      - uses: ${ACTION_REF}\n`;
 
   // Reporting-only repos never reach a postStatus call and never read a

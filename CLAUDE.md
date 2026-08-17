@@ -65,7 +65,7 @@ npm run audit:bank   # the quality gate on its own
 node dist/cli/index.js --local          # bank instantly, AI questions join as they land
 node dist/cli/index.js --local --quick  # the question bank only, no AI attempted
 node dist/cli/index.js --detect         # what would it ask? no game, no clock
-node dist/cli/index.js <pr> --certify   # timed pass, then master every question
+node dist/cli/index.js <pr> --require   # timed pass, then master every question
 POPPR_DEBUG=1 node dist/cli/index.js --local   # print batch arrival times and errors
 npm run build:web                       # web/vendor/ for the browser version
 ```
