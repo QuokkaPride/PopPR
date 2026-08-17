@@ -266,23 +266,21 @@ for (const path of HOSTILE) {
 
     assert.equal(unsealedSpan(body), null, "a code span was left unsealed");
 
-    // Inside a sealed span the tag is literal text, which is the whole point.
-    // What must not happen is a tag surviving OUTSIDE one, so strip the spans
-    // and check what is left.
-    const outsideSpans = body.replace(/(`+)[\s\S]*?\1(?!`)/g, "");
-    assert.ok(!/<img|<script/i.test(outsideSpans), "raw HTML escaped its code span");
-
-    // The row must stay two columns: an unescaped pipe would add cells.
-    const row = body.split("\n").find((l) => l.startsWith("| `promise-all`"));
-    const cells = row.split(/(?<!\\)\|/).filter((s) => s.trim()).length;
-    assert.equal(cells, 2, `row split into ${cells} cells`);
+    // The comment no longer renders filenames at all: the per-concept table was
+    // dropped because it promised a question set the player is not guaranteed to
+    // see. That removes this injection surface rather than escaping it, so the
+    // test now pins the absence. If a filename is ever rendered again, cell()
+    // is still there and this has to go back to checking the escaping.
+    assert.ok(!body.includes(path), "a contributor-controlled filename reached the comment");
+    assert.ok(!/<img|<script/i.test(body), "raw HTML reached the comment");
   });
 }
 
-test("a filename with no backticks still gets a plain single-backtick span", () => {
+test("no filename from the diff is rendered into the comment", () => {
   const body = detectComment(
     { concepts: [{ concept: "promise-all", files: ["src/a.ts"], evidence: [{ file: "src/a.ts", line: 3, text: "await Promise.all(x)" }] }], questions: 1 },
     { owner: "o", repo: "r", number: 1 },
   );
-  assert.match(body, /\| `promise-all` \| `src\/a\.ts:3`/);
+  assert.ok(!body.includes("src/a.ts"), "the comment should name concepts, not files");
+  assert.ok(body.includes("1 question on this diff"), "it still says how many questions");
 });

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import readline from "node:readline";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { Command, Option } from "commander";
@@ -20,7 +21,6 @@ import { codeFiles, detectConcepts } from "../core/concepts.js";
 import { bankQuestions, certifySet } from "../core/bank.js";
 import { MasteryLoop } from "../core/mastery.js";
 import { certifyComment, STATUS_CONTEXT } from "../core/certify.js";
-import { classifyConcepts } from "../core/classify.js";
 import { formatDuration } from "../core/scorecard.js";
 import type { PrContext, Question, RunResult } from "../core/types.js";
 import { runGame } from "./game.js";
@@ -254,20 +254,13 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
       if (backend) {
       spin.update(`Reading your code  ${pc.dim(`(${backend.note})`)}`);
 
-      // One small call asking which bank concepts genuinely matter here, run
-      // alongside generation rather than before it. Its concepts widen the
-      // seeded pool the moment they land, roughly twelve seconds in, well
-      // before the written-for-you questions arrive.
-      void classifyConcepts(ctx, backend.provider)
-        .then((classified) => {
-          if (!classified.length) return;
-          const known = new Set(staircase.concepts);
-          const fresh = classified.filter((c) => !known.has(c.concept));
-          if (fresh.length) {
-            staircase.add(bankQuestions(fresh, 8, { codeFiles: codeFiles(ctx) }));
-          }
-        })
-        .catch(() => {});
+      // No concept-classification call here on purpose. It asked the backend
+      // which bank concepts matter, which is a nice-to-have, and it did it by
+      // running a FOURTH backend process alongside the three writing questions.
+      // On one machine those contend: the same batch that lands in 114s on its
+      // own did not land inside a 180s run with classify alongside it. The
+      // written-for-you questions are the promise, so they get the whole
+      // backend. classify.ts is still there and still used by nothing.
 
       generation = generateQuizStreaming(ctx, backend.provider, {
         reviewConcepts: review,
@@ -358,6 +351,12 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
     // keyless machine on the default path plays a curated run and the banner has
     // to say "quick", or the first thing PopPR tells that user is untrue.
     const mode = !wantsAi || backendMissing ? "quick" : "deep";
+    // Before the clock starts, not during: waiting is only tolerable when it is
+    // not costing you the run. Skipped entirely when no backend was found.
+    if (wantsAi && !backendMissing) {
+      await offerToWait(() => aiArrivals.length > 0);
+    }
+
     await countdown(ctx.label, seconds, mode);
 
     const result = await runGame(staircase, {
@@ -687,3 +686,74 @@ program.parseAsync(process.argv).catch((err: unknown) => {
   console.error(pc.red(`\n  ${(err as Error).message}\n`));
   process.exit(1);
 });
+
+/**
+ * Offer to wait for the first AI batch, before the clock starts.
+ *
+ * Generation cannot be made reliably fast. Measured across runs on one backend,
+ * the first batch landed at 40s, 114s, 122s and past 180s, on diffs from eleven
+ * lines to thirty-two files. Fewer questions did not help and a smaller diff
+ * made it slower, so the spread is the backend, not the prompt. Against a
+ * three-minute clock that means AI questions sometimes arrive and sometimes do
+ * not, and a feature that works two runs in three with no way to tell which you
+ * got is worse than one that visibly does not work.
+ *
+ * So the wait becomes a choice instead of a silent loss. Someone who wants the
+ * tailored questions can pay for them in a place where waiting is the expected
+ * thing, and someone who wants to play now loses nothing: the bank is already
+ * seeded, and batches still join mid-run if they land.
+ *
+ * Only shown when a backend exists and nothing has arrived yet. A keyless run
+ * never sees it, which is what keeps first play free of setup.
+ */
+function offerToWait(landed: () => boolean): Promise<void> {
+  return new Promise((resolve) => {
+    if (!process.stdin.isTTY) return resolve();
+
+    readline.emitKeypressEvents(process.stdin);
+    const wasRaw = process.stdin.isRaw;
+    process.stdin.setRawMode(true);
+
+    const startedAt = Date.now();
+    let done = false;
+
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearInterval(tick);
+      process.stdin.off("keypress", onKey);
+      process.stdin.setRawMode(wasRaw ?? false);
+      process.stdout.write("\r" + " ".repeat(72) + "\r");
+      resolve();
+    };
+
+    console.log("");
+    console.log(`  ${pc.cyan("✦")} ${pc.dim("Writing questions about your code. This usually takes a minute or two.")}`);
+    console.log(`  ${pc.dim("[enter] start now, they join as they land   ·   [w] wait for them")}`);
+
+    let waiting = false;
+
+    const tick = setInterval(() => {
+      if (landed()) return finish();
+      if (!waiting) return;
+      const s = Math.round((Date.now() - startedAt) / 1000);
+      process.stdout.write(
+        `\r  ${pc.cyan("✦")} ${pc.dim(`waiting… ${s}s   any key to start anyway`)}   `,
+      );
+    }, 500);
+
+    const onKey = (_s: string, key: { name?: string; ctrl?: boolean }) => {
+      if (key?.ctrl && key.name === "c") return finish();
+      // The first `w` switches to waiting; anything after it starts the run, so
+      // nobody is ever stuck behind a model.
+      if (!waiting && key?.name === "w") {
+        waiting = true;
+        return;
+      }
+      finish();
+    };
+
+    process.stdin.on("keypress", onKey);
+    process.stdin.resume();
+  });
+}

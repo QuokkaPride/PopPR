@@ -230,31 +230,15 @@ export function detectComment(
     return out.join("\n") + "\n";
   }
 
+  // No per-concept table any more. It listed what the regexes matched, which is
+  // not what the player is asked: the browser serves the bank, and a terminal
+  // run with a backend adds questions written about this specific code. A table
+  // promising a set nobody is guaranteed to see was precision about the wrong
+  // thing, and it was the longest part of the comment.
   const n = data.concepts.length;
   out.push(
-    `**PopPR** · this PR touches ${n} concept${n === 1 ? "" : "s"} with ${data.questions} question${data.questions === 1 ? "" : "s"} in the bank.`,
-    "",
-    // The triggering line, not just the file. A reviewer scanning this should be
-    // able to agree or disagree with the detection without opening anything,
-    // and the author should never wonder why a concept is on the list.
-    "| concept | your line |",
-    "| --- | --- |",
+    `**PopPR** · ${data.questions} question${data.questions === 1 ? "" : "s"} on this diff, across ${n} concept${n === 1 ? "" : "s"}.`,
   );
-  for (const c of data.concepts.slice(0, 8)) {
-    const ev = c.evidence?.[0];
-    if (ev) {
-      const where = ev.line ? `${ev.file}:${ev.line}` : ev.file;
-      const code = ev.text.length > 68 ? `${ev.text.slice(0, 67)}…` : ev.text;
-      out.push(`| ${cell(c.concept)} | ${cell(where)}<br>${cell(code)} |`);
-    } else {
-      const files = c.files.slice(0, 2).map(cell).join(", ");
-      const more = c.files.length > 2 ? ` +${c.files.length - 2}` : "";
-      out.push(`| ${cell(c.concept)} | ${files}${more} |`);
-    }
-  }
-  if (data.concepts.length > 8) {
-    out.push(`| | and ${data.concepts.length - 8} more |`);
-  }
 
   const link = quizUrl(opts);
 
@@ -274,13 +258,13 @@ export function detectComment(
 
   out.push(
     "",
-    "<details><summary>Prefer the terminal?</summary>",
+    "<details><summary>Want questions written about this specific code?</summary>",
     "",
     "```bash",
     `npx ${pkg} ${opts.number}${opts.certify ? " --certify" : ""}`,
     "```",
     "",
-    "Same quiz. Required for private repositories, where the browser version cannot read the diff.",
+    "The browser version asks from the question bank, which needs nothing installed. Run it in your terminal and, if you have Claude Code, Cursor or an AI API key, it also has one write questions about this diff. The terminal is also the only option on private repositories, where the browser cannot read the diff.",
     "</details>",
   );
 
