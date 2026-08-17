@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import readline from "node:readline";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { Command, Option } from "commander";
@@ -20,7 +21,6 @@ import { codeFiles, detectConcepts } from "../core/concepts.js";
 import { bankQuestions, certifySet } from "../core/bank.js";
 import { MasteryLoop } from "../core/mastery.js";
 import { certifyComment, STATUS_CONTEXT } from "../core/certify.js";
-import { classifyConcepts } from "../core/classify.js";
 import { formatDuration } from "../core/scorecard.js";
 import type { PrContext, Question, RunResult } from "../core/types.js";
 import { runGame } from "./game.js";
@@ -46,24 +46,13 @@ program
   .argument("[pr]", "PR number or URL. Defaults to your most recent PR.")
   .option("--local", "quiz on the local branch diff instead of a GitHub PR")
   .option("--base <ref>", "base ref for --local (default: auto-detected)")
-  // Folded into --deep, which now does the concept classification too. Kept as a
-  // working flag and dropped from help, because two AI modes nobody could tell
-  // apart was the problem.
-  .addOption(new Option("-s, --smart", "deprecated: use --deep").hideHelp())
-  // On by default. Kept as an explicit flag because it also means "I expect the
-  // AI questions", which is what turns a missing backend from silence into a
-  // message worth printing.
-  .option(
-    "-d, --deep",
-    "require the AI questions, and say so if no backend is available (default: use them when one is)",
-  )
-  .option("--quick", "curated bank only: no AI, no network, no key")
+  .option("--quick", "the question bank only: no AI, no network, no key")
   .option("-t, --time <seconds>", "how long the run lasts", "180")
   .option(
     "--certify",
     "answer every question correctly, untimed after the clock, then post the completion comment",
   )
-  .option("--questions <n>", "how many questions a --certify run has to get right", "10")
+  .option("--questions <n>", "how many questions a --certify run has to get right", "5")
   .option("--provider <name>", "claude-code | cursor-agent | anthropic | openai | openrouter | ollama")
   .option("--stats", "show your concept mastery over time and exit")
   .option(
@@ -151,15 +140,6 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
     );
     process.exit(1);
   }
-  if (opts.certify && opts.deep) {
-    console.error(
-      pc.yellow(
-        "\n  Certification asks from the curated bank, so it cannot run with --deep.\n",
-      ),
-    );
-    process.exit(1);
-  }
-
   /**
    * Whether to try for AI-written questions, and whether to say anything when
    * there are none.
@@ -172,19 +152,14 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
    * HANDOFF.md decision 3 intact: first play still needs no key, no install and
    * no config.
    *
-   * `--deep` now means "I want the AI questions and I want to be told if I am
-   * not getting them". Without it, a missing backend is silent, because nagging
-   * every keyless user on every run is how a tool teaches people to ignore it.
-   * `--quick` opts out of the attempt entirely.
-   *
-   * Certification is bank-only by design (the mastery loop needs a fixed pool),
-   * so it never takes this path.
+   * `--quick` opts out of the attempt entirely. Certification is bank-only by
+   * design, because the mastery loop needs a fixed pool, so it never takes this
+   * path either.
    */
-  const wantsAi = !opts.quick && !opts.certify && (opts.deep || !opts.smart);
-  // Naming a provider is asking for it just as plainly as --deep is. Silently
-  // playing the bank after someone typed `--provider ollama` looks like the flag
-  // was ignored, which it effectively was.
-  const aiDemanded = Boolean(opts.deep || opts.provider);
+  const wantsAi = !opts.quick && !opts.certify;
+  // Naming a provider is asking for the AI questions out loud, so a run that
+  // then plays the bank owes that person an explanation. Nobody else gets one.
+  const aiDemanded = Boolean(opts.provider);
 
   const cwd = process.cwd();
   const spin = startSpinner("Finding your PR");
@@ -232,6 +207,10 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
     // staircase because the staircase serves what the clock reaches, and the
     // claim covers every question whether the clock reached it or not.
     let certifyPool: Question[] = [];
+    /** When each generated batch landed, and what failed. Drives the summary line. */
+    const aiArrivals: Array<{ index: number; ms: number; count: number }> = [];
+    const aiErrors: Array<{ index: number; ms: number; message: string }> = [];
+
     /** No AI backend on this machine. Ordinary, and only worth saying if asked. */
     let backendMissing = false;
     /** A backend was found and generation still failed. Always worth saying. */
@@ -275,31 +254,27 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
       if (backend) {
       spin.update(`Reading your code  ${pc.dim(`(${backend.note})`)}`);
 
-      // Deep mode absorbed smart mode. They were separate flags and nobody could
-      // tell them apart, which is a product problem rather than a docs one: one
-      // asked a model WHICH bank concepts matter, the other asked it to WRITE
-      // questions, and both were spelled "the AI one". Now the classify call
-      // runs alongside generation and its concepts widen the seeded pool the
-      // moment it lands, roughly twelve seconds in, well before the written-for
-      // -you questions arrive. `--smart` still works and is no longer
-      // advertised.
-      void classifyConcepts(ctx, backend.provider)
-        .then((classified) => {
-          if (!classified.length) return;
-          const known = new Set(staircase.concepts);
-          const fresh = classified.filter((c) => !known.has(c.concept));
-          if (fresh.length) {
-            staircase.add(bankQuestions(fresh, 8, { codeFiles: codeFiles(ctx) }));
-          }
-        })
-        .catch(() => {});
+      // No concept-classification call here on purpose. It asked the backend
+      // which bank concepts matter, which is a nice-to-have, and it did it by
+      // running a FOURTH backend process alongside the three writing questions.
+      // On one machine those contend: the same batch that lands in 114s on its
+      // own did not land inside a 180s run with classify alongside it. The
+      // written-for-you questions are the promise, so they get the whole
+      // backend. classify.ts is still there and still used by nothing.
 
       generation = generateQuizStreaming(ctx, backend.provider, {
         reviewConcepts: review,
-        onBatch(batch) {
+        onBatch(batch, index, ms) {
           pending--;
           staircase.add(batch);
+          aiArrivals.push({ index, ms, count: batch.length });
           if (staircase.remaining > 0 || pending === 0) firstBatch?.();
+        },
+        onBatchError(err, index, ms) {
+          // Kept even though the run plays on. A backend that crashes and one
+          // that is merely slow used to be the same event here, so "no AI
+          // questions" was the only thing the run could ever report.
+          aiErrors.push({ index, ms, message: (err as Error)?.message ?? String(err) });
         },
       }).catch((err) => {
         firstBatch?.();
@@ -336,26 +311,16 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
       }
     } else {
       // Pure pattern matching against a curated bank. No model, no network, no
-      // key: a few milliseconds. Reached by `--quick`, `--certify` and a bare
-      // `--smart`. The default path is above, and tries for AI first.
-      let detected = detectConcepts(ctx);
-
-      if (opts.smart) {
-        // Smart mode: same curated questions, but a model decides which
-        // concepts matter here instead of a regex guessing from
-        // keywords. One small call, because the output is a list of slugs.
-        spin.update("Working out what matters in this diff");
-        const { provider } = await detectProvider(opts.provider);
-        const classified = await classifyConcepts(ctx, provider);
-        if (classified.length) detected = classified;
-      }
+      // key: a few milliseconds. Reached by `--quick` and `--certify`. The
+      // default path is above, and tries for AI first.
+      const detected = detectConcepts(ctx);
 
       if (opts.certify) {
         // A different selection from the scored run: smaller, and round-robin
         // across concepts so no single regex hit can decide what someone has to
         // master before merging. See certifySet.
         certifyPool = certifySet(detected, {
-          limit: Number(opts.questions) || 10,
+          limit: Number(opts.questions) || 5,
           topUp: { codeFiles: codeFiles(ctx) },
         });
         if (certifyPool.length === 0) {
@@ -386,7 +351,13 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
     // keyless machine on the default path plays a curated run and the banner has
     // to say "quick", or the first thing PopPR tells that user is untrue.
     const mode = !wantsAi || backendMissing ? "quick" : "deep";
-    await countdown(ctx.label, seconds, opts.smart && !wantsAi ? "smart" : mode);
+    // Before the clock starts, not during: waiting is only tolerable when it is
+    // not costing you the run. Skipped entirely when no backend was found.
+    if (wantsAi && !backendMissing) {
+      await offerToWait(() => aiArrivals.length > 0);
+    }
+
+    await countdown(ctx.label, seconds, mode);
 
     const result = await runGame(staircase, {
       durationMs: seconds * 1000,
@@ -425,6 +396,35 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
       console.log(
         pc.dim(`  Could not write ${process.env.POPPR_HOME ?? "~/.poppr"}, so this run was not recorded.\n`),
       );
+    }
+
+    // What actually happened to the AI half, counted from what reached the pool
+    // rather than from how the calls ended. A batch that landed after the clock
+    // stopped is not a success from where the player is sitting.
+    const aiAsked = result.answered.filter((a) => a.question.source === "ai").length;
+    const aiWritten = aiArrivals.reduce((n, a) => n + a.count, 0);
+
+    if (aiAsked > 0) {
+      console.log(pc.dim(`  ${aiAsked} of these were written about your diff.\n`));
+    } else if (aiWritten > 0) {
+      console.log(
+        pc.dim(`  ${aiWritten} questions were written about your diff, too late to be asked.\n`),
+      );
+    } else if (backendMissing) {
+      console.log(pc.dim("  All from the question bank. No AI backend here.\n"));
+    } else if (wantsAi) {
+      // Backend present, nothing landed, nothing errored: the calls were still
+      // running when the clock stopped. This case printed nothing at all, which
+      // is how a feature that never once worked went unnoticed for a year.
+      console.log(
+        pc.dim("  All from the question bank. The AI questions were still being written\n") +
+          pc.dim("  when the clock stopped. `POPPR_DEBUG=1` shows when each batch landed.\n"),
+      );
+    }
+
+    if (process.env.POPPR_DEBUG) {
+      for (const a of aiArrivals) console.log(pc.dim(`  [debug] batch ${a.index}: ${a.count} questions at ${(a.ms / 1000).toFixed(1)}s`));
+      for (const e of aiErrors) console.log(pc.yellow(`  [debug] batch ${e.index} failed at ${(e.ms / 1000).toFixed(1)}s: ${e.message}`));
     }
 
     // A backend that is missing or slow costs you the written-for-you questions
@@ -686,3 +686,74 @@ program.parseAsync(process.argv).catch((err: unknown) => {
   console.error(pc.red(`\n  ${(err as Error).message}\n`));
   process.exit(1);
 });
+
+/**
+ * Offer to wait for the first AI batch, before the clock starts.
+ *
+ * Generation cannot be made reliably fast. Measured across runs on one backend,
+ * the first batch landed at 40s, 114s, 122s and past 180s, on diffs from eleven
+ * lines to thirty-two files. Fewer questions did not help and a smaller diff
+ * made it slower, so the spread is the backend, not the prompt. Against a
+ * three-minute clock that means AI questions sometimes arrive and sometimes do
+ * not, and a feature that works two runs in three with no way to tell which you
+ * got is worse than one that visibly does not work.
+ *
+ * So the wait becomes a choice instead of a silent loss. Someone who wants the
+ * tailored questions can pay for them in a place where waiting is the expected
+ * thing, and someone who wants to play now loses nothing: the bank is already
+ * seeded, and batches still join mid-run if they land.
+ *
+ * Only shown when a backend exists and nothing has arrived yet. A keyless run
+ * never sees it, which is what keeps first play free of setup.
+ */
+function offerToWait(landed: () => boolean): Promise<void> {
+  return new Promise((resolve) => {
+    if (!process.stdin.isTTY) return resolve();
+
+    readline.emitKeypressEvents(process.stdin);
+    const wasRaw = process.stdin.isRaw;
+    process.stdin.setRawMode(true);
+
+    const startedAt = Date.now();
+    let done = false;
+
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearInterval(tick);
+      process.stdin.off("keypress", onKey);
+      process.stdin.setRawMode(wasRaw ?? false);
+      process.stdout.write("\r" + " ".repeat(72) + "\r");
+      resolve();
+    };
+
+    console.log("");
+    console.log(`  ${pc.cyan("✦")} ${pc.dim("Writing questions about your code. This usually takes a minute or two.")}`);
+    console.log(`  ${pc.dim("[enter] start now, they join as they land   ·   [w] wait for them")}`);
+
+    let waiting = false;
+
+    const tick = setInterval(() => {
+      if (landed()) return finish();
+      if (!waiting) return;
+      const s = Math.round((Date.now() - startedAt) / 1000);
+      process.stdout.write(
+        `\r  ${pc.cyan("✦")} ${pc.dim(`waiting… ${s}s   any key to start anyway`)}   `,
+      );
+    }, 500);
+
+    const onKey = (_s: string, key: { name?: string; ctrl?: boolean }) => {
+      if (key?.ctrl && key.name === "c") return finish();
+      // The first `w` switches to waiting; anything after it starts the run, so
+      // nobody is ever stuck behind a model.
+      if (!waiting && key?.name === "w") {
+        waiting = true;
+        return;
+      }
+      finish();
+    };
+
+    process.stdin.on("keypress", onKey);
+    process.stdin.resume();
+  });
+}

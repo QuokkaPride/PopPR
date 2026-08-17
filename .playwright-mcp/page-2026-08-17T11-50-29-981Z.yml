@@ -1,0 +1,48 @@
+- main [ref=e2]:
+  - generic [ref=e13]:
+    - generic [ref=e14]:
+      - generic [ref=e15]: PopPR
+      - generic [ref=e18]: 3:00
+      - generic [ref=e19]: "0"
+    - paragraph [ref=e20]:
+      - generic [ref=e21]: Q1
+      - generic [ref=e22]: medium
+      - generic [ref=e23]: optional-chaining
+      - generic [ref=e24]: "+320"
+    - paragraph [ref=e25]:
+      - link "src/cli/index.ts:277" [ref=e26] [cursor=pointer]:
+        - /url: https://github.com/QuokkaPride/PopPR/pull/5/files
+      - code [ref=e27]: "aiErrors.push({ index, ms, message: (err as Error)?.message ?? String(err) });"
+    - paragraph [ref=e28]:
+      - code [ref=e29]: user?.address.city
+      - text: replaced a crash on logged-out requests. It ships, then throws for a signed-in user who never filled in an address. Why?
+    - list [ref=e30]:
+      - listitem [ref=e31]:
+        - button "A ?. guards the link it sits on, so .address.city is a plain read because user exists" [ref=e32] [cursor=pointer]:
+          - generic [ref=e33]: A
+          - generic [ref=e34]:
+            - code [ref=e35]: "?."
+            - text: guards the link it sits on, so
+            - code [ref=e36]: .address.city
+            - text: is a plain read because
+            - code [ref=e37]: user
+            - text: exists
+      - listitem [ref=e38]:
+        - button "B ?. guards every link to its right, so the throw comes from a getter on address" [ref=e39] [cursor=pointer]:
+          - generic [ref=e40]: B
+          - generic [ref=e41]:
+            - code [ref=e42]: "?."
+            - text: guards every link to its right, so the throw comes from a getter on
+            - code [ref=e43]: address
+      - listitem [ref=e44]:
+        - button "C ?. is TypeScript syntax that is erased on build, so the guard is gone in the shipped bundle" [ref=e45] [cursor=pointer]:
+          - generic [ref=e46]: C
+          - generic [ref=e47]:
+            - code [ref=e48]: "?."
+            - text: is TypeScript syntax that is erased on build, so the guard is gone in the shipped bundle
+      - listitem [ref=e49]:
+        - button "D ?. short-circuits on null, and an address never filled in is undefined" [ref=e50] [cursor=pointer]:
+          - generic [ref=e51]: D
+          - generic [ref=e52]:
+            - code [ref=e53]: "?."
+            - text: short-circuits on null, and an address never filled in is undefined

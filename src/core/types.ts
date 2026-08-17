@@ -44,6 +44,15 @@ export interface Evidence {
 
 export interface Question {
   id: string;
+  /**
+   * Where this question came from, shown on the question row as you play.
+   *
+   * A real field rather than an id prefix: `coerce` in quiz.ts takes `q.id`
+   * straight from model output, so a model that emits `"id": "bank1"` would
+   * produce a bank-shaped id for a generated question. Optional because
+   * questions persisted before this existed have no source.
+   */
+  source?: "bank" | "ai";
   difficulty: Difficulty;
   archetype: Archetype;
   /**
@@ -122,5 +131,15 @@ export interface PrContext {
 /** The one interface every AI backend implements. */
 export interface Provider {
   name: string;
-  generate(prompt: string, opts?: { maxTokens?: number }): Promise<string>;
+  generate(prompt: string, opts?: { maxTokens?: number; speed?: Speed }): Promise<string>;
 }
+
+/**
+ * Which end of the speed/quality trade a call wants.
+ *
+ * The first batch has a deadline the others do not: it is racing the run clock,
+ * and a question that arrives after the game is worth nothing however good it
+ * is. So the opener asks the fastest model available and later batches ask the
+ * default one, which is better and has the rest of the run to arrive in.
+ */
+export type Speed = "fast" | "best";

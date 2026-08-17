@@ -1,10 +1,16 @@
-import type { Provider } from "../types.js";
+import type { Provider, Speed } from "../types.js";
 
 export interface KeyConfig {
   label: string;
   url: string;
   headers: Record<string, string>;
   model: string;
+  /**
+   * The quickest model on the same key, used for the batch that is racing the
+   * run clock. Omitted where the provider has no obviously faster sibling, in
+   * which case the opener just uses `model` and arrives when it arrives.
+   */
+  fastModel?: string;
   style: "anthropic" | "openai";
 }
 
@@ -23,6 +29,7 @@ export function detectApiKey(preferred?: string): KeyConfig | null {
             "content-type": "application/json",
           },
           model: env.POPPR_MODEL ?? "claude-sonnet-4-5",
+          fastModel: "claude-haiku-4-5-20251001",
           style: "anthropic",
         }
       : null;
@@ -37,6 +44,7 @@ export function detectApiKey(preferred?: string): KeyConfig | null {
             "content-type": "application/json",
           },
           model: env.POPPR_MODEL ?? "gpt-4o",
+          fastModel: "gpt-4o-mini",
           style: "openai",
         }
       : null;
@@ -51,6 +59,7 @@ export function detectApiKey(preferred?: string): KeyConfig | null {
             "content-type": "application/json",
           },
           model: env.POPPR_MODEL ?? "anthropic/claude-sonnet-4.5",
+          fastModel: "anthropic/claude-haiku-4.5",
           style: "openai",
         }
       : null;
@@ -84,12 +93,13 @@ export function apiKeyProvider(cfg: KeyConfig): Provider {
     name: cfg.label,
     async generate(prompt: string, opts): Promise<string> {
       const maxTokens = opts?.maxTokens ?? 8000;
+      const model = (opts?.speed === "fast" && cfg.fastModel) || cfg.model;
 
       const body =
         cfg.style === "anthropic"
-          ? { model: cfg.model, max_tokens: maxTokens, messages: [{ role: "user", content: prompt }] }
+          ? { model, max_tokens: maxTokens, messages: [{ role: "user", content: prompt }] }
           : {
-              model: cfg.model,
+              model,
               max_tokens: maxTokens,
               messages: [{ role: "user", content: prompt }],
             };

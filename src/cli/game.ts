@@ -76,6 +76,22 @@ function whyLine(question: Question): string[] {
   return [`  ${pc.dim("↳")} ${pc.cyan(where)}  ${pc.dim(code)}`];
 }
 
+/**
+ * Which half of the product this question came from.
+ *
+ * Only the AI ones are marked. Bank questions are the common case and a tag on
+ * every row would be noise; the absence of a tag is the answer for them. Cyan
+ * because it is the thing worth noticing, dim would bury it.
+ */
+function sourceTag(q: Question): string {
+  return q.source === "ai" ? `  ${pc.cyan("✦ ai")}` : "";
+}
+
+/** The same tag without colour, so the column padding can be measured. */
+function plainSourceTag(q: Question): string {
+  return q.source === "ai" ? "  ✦ ai" : "";
+}
+
 function difficultyTag(d: string): string {
   if (d === "hard") return pc.red(d);
   if (d === "medium") return pc.yellow(d);
@@ -114,12 +130,10 @@ export async function runGame(
       // The pool can run dry mid-run while a later batch is still generating.
       // Hold the clock rather than ending the game early, but only briefly.
       //
-      // `pending` was only ever non-zero under --deep before; it is non-zero on
-      // the default path now, so an exhausted pool used to end the run and now
-      // stalls. Unbounded, a thin diff seeded with eight questions spends the
-      // rest of a 180-second clock on a spinner. The wait is also the one place
-      // in the run with no keypress listener attached while raw mode is on, so
-      // it has to listen for ctrl-c itself or the player cannot leave.
+      // Bounded, because a thin diff seeded with eight questions would spend
+      // the rest of a 180-second clock on a spinner otherwise. The wait is also
+      // the one place in the run with no keypress listener attached while raw
+      // mode is on, so it listens for ctrl-c itself or the player cannot leave.
       if (!question && opts.moreComing?.()) {
         question = await waitForMore(staircase, opts, deadline);
         if (question === ABORTED) break;
@@ -285,7 +299,9 @@ function askOne(
         "",
         `  ${pc.dim("Q" + ctx.number)} ${difficultyTag(question.difficulty)} ${pc.dim(
           "· " + question.concept,
-        )}${" ".repeat(Math.max(1, 44 - question.concept.length))}${pc.dim("+" + value)}`,
+        )}${sourceTag(question)}${" ".repeat(
+          Math.max(1, 44 - question.concept.length - plainSourceTag(question).length),
+        )}${pc.dim("+" + value)}`,
         ...whyLine(question),
         "",
       ];

@@ -62,12 +62,11 @@ a repo they are responsible for, in a spare ten minutes.
 npm run build        # tsc -> dist/
 npm test             # build + bank audit. Run before every commit.
 npm run audit:bank   # the quality gate on its own
-node dist/cli/index.js --local          # bank instantly, AI questions stream in
-node dist/cli/index.js --local --quick  # curated bank only, no AI attempted
-node dist/cli/index.js --local --smart  # same, but AI picks the concepts
+node dist/cli/index.js --local          # bank instantly, AI questions join as they land
+node dist/cli/index.js --local --quick  # the question bank only, no AI attempted
 node dist/cli/index.js --detect         # what would it ask? no game, no clock
 node dist/cli/index.js <pr> --certify   # timed pass, then master every question
-node dist/cli/index.js --local --deep   # as the default, but complains with no backend
+POPPR_DEBUG=1 node dist/cli/index.js --local   # print batch arrival times and errors
 npm run build:web                       # web/vendor/ for the browser version
 ```
 
@@ -107,25 +106,33 @@ test/              node:test suites over dist/
 directly, so anything that writes to stdout or reads `process.argv` belongs in
 `cli/`.
 
-## The three modes, and why
+## How a run is put together
 
-| mode | selection | questions | time to first question |
-|---|---|---|---|
-| default (backend found) | regex, then AI | bank first, AI streams in | ~50ms |
-| default (no backend) | regex over added lines | curated bank | ~50ms |
-| `--quick` | regex over added lines | curated bank | ~50ms |
-| `--smart` | one AI call picks concepts | curated bank | ~12s |
-| `--deep` | regex, then AI | bank first, AI streams in | ~50ms |
+PopPR ships with a bank of 328 questions. It analyses the diff, finds the
+patterns with the regexes in `concepts.ts`, and asks the bank questions that
+match. No API key, no network, no install: this is what every run gets, and it
+is in the pool in about 50ms.
 
-`--deep` used to block for three minutes before the first question. It now seeds
-from the bank and streams, so it is quick mode that gets better while you play.
-That is what lets it be the default.
+If a backend is available, PopPR also has it write questions about the specific
+code, and those join the pool as they arrive, marked `✦ ai` on the question row.
+`--quick` skips the attempt.
 
-**The default tries for AI questions and never requires them.** With no backend
-installed it plays the curated bank, silently, at the same speed. Do not add a
-required setup step to the default path, and do not print a warning about a
-missing backend on a run that did not ask for one: `--deep` asked, so it hears
-about it; a plain `poppr` did not. See decision 3 in `HANDOFF.md`.
+**The first generated batch asks the fastest model on the backend; later batches
+ask the default one.** That split is the difference between the AI half existing
+and not. Measured on a 32-file diff: default model 263s to a batch, fast model
+40s, against a 180-second clock. Before this, the first batch landed at 222s and
+no player had ever seen a generated question. A question that arrives after the
+game has ended is worth nothing however good it is.
+
+Two things follow, and both are load-bearing:
+
+- **Never put the AI on the critical path to the first question.** The bank
+  seeds the pool, generation joins it. A keyless machine plays the same run at
+  the same speed.
+- **Question count drives latency, not context size.** Measured: 5 questions
+  251s, 3 questions 171s, 2 questions 98s, while trimming the diff to 5 files
+  made it *slower* at the same count. Do not try to speed this up by sending
+  less diff.
 
 ## The one invariant that matters
 
@@ -204,11 +211,26 @@ contrasts.
   at 53% in the generated questions, which is the same rot the bank had.
 - C/C++ is the weakest language at 47% of code PRs, and half of what fires on it
   is generic. C's bugs live half in the language and half in the specific data
-  structure being touched, and the second half needs `--deep`.
+  structure being touched, and the second half needs the AI questions.
 - Detection rates measured on the corpus a rule was designed from run 15 to 20
   points above the same rule on held-out repos. Quote the held-out number.
 - `concepts.ts` regexes are loose by design and do produce false positives.
-  That is what `--smart` exists to fix, not something to solve with more regex.
+  That is what the AI concept pass exists to fix, rather than more regex.
+
+## Shipping a change
+
+Every change opens a PR. Before opening it, smoke both paths in a terminal:
+
+1. **A default run.** Confirm AI questions actually appear, marked `✦ ai`, and
+   read them: are they about the real diff? `POPPR_DEBUG=1` prints when each
+   batch landed and what any of them failed with. **No AI questions is a bug to
+   diagnose, not a result to accept.** They were unreachable for the whole life
+   of the project and nobody noticed, because nothing on screen said so.
+2. **A `--quick` run.** Confirm it plays with no network and no backend.
+
+Then `/release`, which handles the version, the changelog, the tag and the
+trusted publish. It also moves the `v1` tag, without which every consumer's
+workflow breaks.
 
 ## Conventions
 

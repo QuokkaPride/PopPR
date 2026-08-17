@@ -48,12 +48,12 @@ test("certifySet respects limit", () => {
   }
 });
 
-test("certifySet defaults to ten questions and stops at what the bank actually holds", () => {
+test("certifySet defaults to five questions and stops at what the bank actually holds", () => {
   const plenty = conceptsWithAtLeast(2, 8);
-  assert.equal(certifySet(plenty).length, 10, "the documented default is ten");
+  assert.equal(certifySet(plenty).length, 5, "the documented default is five");
 
-  // Two concepts at two each is four questions, and the default limit of ten
-  // must not invent the other six.
+  // Two concepts at two each is four questions, and the default limit must not
+  // invent the fifth.
   const thin = conceptsWithAtLeast(2, 2);
   assert.equal(certifySet(thin).length, 4);
 });
@@ -227,7 +227,13 @@ test("bankQuestions still behaves as before the toQuestions refactor", () => {
 
     const ids = questions.map((q) => q.id);
     assert.equal(new Set(ids).size, ids.length, "ids are unique within a set");
-    assert.deepEqual(ids, ["bank1", "bank2", "bank3", "bank4", "bank5"], "ids are positional");
+    // Deliberately NOT positional any more. Positional ids restarted at bank1
+    // on every call, so a second draw always collided with the first and
+    // Staircase.add dropped all of it. See ENTRY_ID in src/core/bank.ts.
+    assert.ok(
+      ids.every((id) => /^bank\d+$/.test(id)),
+      `ids should be entry-keyed, got ${ids.join(", ")}`,
+    );
 
     for (const question of questions) {
       assert.ok(asked.has(question.concept), `${question.concept} was never asked for`);

@@ -222,7 +222,7 @@ export function detectComment(
     out.push(
       "**PopPR** found no bank concepts in this diff.",
       "",
-      `Nothing here adds code the bank can read: documentation, lockfiles and generated files come up empty on purpose. For questions written about this specific code, \`npx ${pkg} --deep\`.`,
+      `Nothing here adds code the bank can read: documentation, lockfiles and generated files come up empty on purpose. Running it in your terminal also has an AI write questions about this specific code, if you have one set up.`,
     );
     if (opts.certify) {
       out.push("", "Nothing to certify here, so the check passes on its own.");
@@ -230,57 +230,43 @@ export function detectComment(
     return out.join("\n") + "\n";
   }
 
+  // No per-concept table any more. It listed what the regexes matched, which is
+  // not what the player is asked: the browser serves the bank, and a terminal
+  // run with a backend adds questions written about this specific code. A table
+  // promising a set nobody is guaranteed to see was precision about the wrong
+  // thing, and it was the longest part of the comment.
+  // Concepts are counted, never listed. The list was what the regexes matched,
+  // which is not the set the player is asked, and it was the longest thing here.
   const n = data.concepts.length;
   out.push(
-    `**PopPR** · this PR touches ${n} concept${n === 1 ? "" : "s"} with ${data.questions} question${data.questions === 1 ? "" : "s"} in the bank.`,
-    "",
-    // The triggering line, not just the file. A reviewer scanning this should be
-    // able to agree or disagree with the detection without opening anything,
-    // and the author should never wonder why a concept is on the list.
-    "| concept | your line |",
-    "| --- | --- |",
+    `**PopPR** · ${data.questions} question${data.questions === 1 ? "" : "s"} on this diff, from ${n} concept${n === 1 ? "" : "s"} detected in your changes.`,
   );
-  for (const c of data.concepts.slice(0, 8)) {
-    const ev = c.evidence?.[0];
-    if (ev) {
-      const where = ev.line ? `${ev.file}:${ev.line}` : ev.file;
-      const code = ev.text.length > 68 ? `${ev.text.slice(0, 67)}…` : ev.text;
-      out.push(`| ${cell(c.concept)} | ${cell(where)}<br>${cell(code)} |`);
-    } else {
-      const files = c.files.slice(0, 2).map(cell).join(", ");
-      const more = c.files.length > 2 ? ` +${c.files.length - 2}` : "";
-      out.push(`| ${cell(c.concept)} | ${files}${more} |`);
-    }
-  }
-  if (data.concepts.length > 8) {
-    out.push(`| | and ${data.concepts.length - 8} more |`);
-  }
 
-  const link = quizUrl(opts);
-
-  if (opts.certify) {
-    out.push(
-      "",
-      `**[Take the quiz](${link})** · this repo asks contributors to certify.`,
-      "",
-      `Answer under the clock, then keep going untimed until every question is right. You cannot fail it and the number of tries is never published. Post the comment it gives you at the end and the \`${STATUS_CONTEXT}\` check turns green.`,
-    );
-  } else {
-    out.push(
-      "",
-      `**[Take the quiz](${link})** · three minutes in your browser, nothing to install.`,
-    );
-  }
-
+  // The terminal leads, because it is the only one that can write questions
+  // about THIS code. The browser needs nothing installed and is the better
+  // answer for someone who just wants to play, so it stays one click away
+  // rather than gone.
   out.push(
-    "",
-    "<details><summary>Prefer the terminal?</summary>",
     "",
     "```bash",
     `npx ${pkg} ${opts.number}${opts.certify ? " --certify" : ""}`,
     "```",
     "",
-    "Same quiz. Required for private repositories, where the browser version cannot read the diff.",
+    "Runs the question bank straight away. If you have Claude Code, Cursor or an AI API key, it also has one write questions about your exact diff and mixes them in.",
+  );
+
+  if (opts.certify) {
+    out.push(
+      "",
+      `This repo asks contributors to certify. Answer under the clock, then keep going untimed until every question is right. You cannot fail it and the number of tries is never published. Post the comment it gives you at the end and the \`${STATUS_CONTEXT}\` check turns green.`,
+    );
+  }
+
+  out.push(
+    "",
+    `<details><summary>No terminal, or happy with bank questions? Play in your browser.</summary>`,
+    "",
+    `**[Take the quiz](${quizUrl(opts)})** · nothing to install, no account. Asks from the question bank only, so no AI-written questions. Public repositories only: the browser cannot read a private diff.`,
     "</details>",
   );
 

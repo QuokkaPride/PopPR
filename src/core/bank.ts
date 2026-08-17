@@ -135,7 +135,7 @@ export function certifySet(
   // Clamped to the shared ceiling: the PR comment quotes this number, so a
   // maintainer configuring 40 must not get a comment promising 40 and a gate
   // that runs 25.
-  const limit = Math.min(opts.limit ?? 10, MAX_CERTIFY_QUESTIONS);
+  const limit = Math.min(opts.limit ?? 5, MAX_CERTIFY_QUESTIONS);
 
   // Keyed by slug, which also dedupes. `detectConcepts` cannot repeat a concept
   // but `classifyConcepts` can, and a duplicate group would make someone answer
@@ -184,6 +184,20 @@ export function shuffleOptions(question: Question): Question {
   };
 }
 
+/**
+ * A stable id per bank entry, keyed on the entry object itself.
+ *
+ * It used to be `bank${i + 1}` from the position within one call's result, so
+ * every call started at bank1. `Staircase.add` skips ids already in the pool,
+ * and `fillUniversal` floors a seed at UNIVERSAL_FLOOR while the concept-widening
+ * call asks for the same 8, so the widened set collided completely and every
+ * question it found was dropped. Measured: added 0 of 8, on every run with a
+ * backend. Keying on the entry makes that dedupe mean "the same curated question
+ * twice", which is what the widening call needs, since its concepts genuinely
+ * overlap the seed's.
+ */
+const ENTRY_ID = new Map<BankEntry, string>(ALL_ENTRIES.map((e, i) => [e, `bank${i}`]));
+
 function toQuestions(
   entries: BankEntry[],
   wanted: Map<string, ConceptSelection>,
@@ -196,7 +210,8 @@ function toQuestions(
       whyTempting: o.whyTempting || undefined,
     }));
     return {
-      id: `bank${i + 1}`,
+      id: ENTRY_ID.get(entry) ?? `bank-unlisted-${i}`,
+      source: "bank" as const,
       difficulty: entry.difficulty,
       archetype: "language-concept" as const,
       concept: entry.concept,
