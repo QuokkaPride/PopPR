@@ -40,9 +40,16 @@ The GitHub Action runs inside your CI and reads the diff through the GitHub API.
 
 ## Put it on your team's repo
 
-**Your repo does not need to be a Node project, and you do not need Node installed.** The Action reads the diff through the GitHub API as text, never checks out or executes PR code, and runs on the Node that GitHub's runners already ship. Rust, Python, Go, Java, or docs-only: it makes no difference.
+**Your repo does not need to be a Node project.** The Action reads the diff through the GitHub API as text, never checks out or executes PR code, and runs on the Node that GitHub's runners already ship. Rust, Python, Go, Java, or docs-only: it makes no difference.
 
-Save this as `.github/workflows/poppr.yml` and commit it. That is the whole setup.
+**If it is a Node project**, one command writes the workflow:
+
+```bash
+npx @quokkapride/poppr init            # comments on every PR
+npx @quokkapride/poppr init --require  # adds the poppr/quiz-passed check
+```
+
+**If it is not**, save this as `.github/workflows/poppr.yml` and commit it:
 
 ```yaml
 name: PopPR
@@ -66,9 +73,7 @@ jobs:
       - uses: QuokkaPride/PopPR@v1
 ```
 
-To require a passing quiz before merge, add `statuses: write` to `permissions` and `with: { require: true }` to the step.
-
-If you do have Node, `npx @quokkapride/poppr init` writes that file for you, and `init --require` writes the gating version.
+For the gating version, add `statuses: write` to `permissions` and `with: { require: true }` to the step.
 
 **`--require` does not block merges on its own.** It posts a check that stays pending until the author has answered every question about their diff correctly. To make GitHub enforce it: open one PR so the check runs once, then go to **Settings → Branches → Require status checks to pass** and add `poppr/quiz-passed`. ([GitHub's guide](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches#require-status-checks-before-merging))
 

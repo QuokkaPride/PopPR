@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.2
+
+README only. The setup section led with a 20-line YAML file and mentioned
+`poppr init` at the end, so a Node project was told to hand-copy a file it can
+generate with one command. It now branches on the question the reader can
+answer about their own repo: Node, or not.
+
+
 ## 0.5.1
 
 README only. "What you get" said in five paragraphs what it says here in two:
