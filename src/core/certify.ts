@@ -211,7 +211,7 @@ export function detectComment(
   // which is not the set the player is asked, and it was the longest thing here.
   const n = data.concepts.length;
   out.push(
-    `**PopPR** · ${data.questions} question${data.questions === 1 ? "" : "s"} on this diff, from ${n} concept${n === 1 ? "" : "s"} detected in your changes.`,
+    `**PopPR** · ${data.questions} question${data.questions === 1 ? "" : "s"}, from ${n} concept${n === 1 ? "" : "s"} found in this diff.`,
   );
 
   // The terminal leads, because it is the only one that can write questions
@@ -221,24 +221,24 @@ export function detectComment(
   out.push(
     "",
     "```bash",
-    `npx ${pkg} ${opts.number}${opts.certify ? " --certify" : ""}`,
+    `npx ${pkg} ${opts.number}${opts.certify ? " --require" : ""}`,
     "```",
     "",
-    "Runs the question bank straight away. If you have Claude Code, Cursor or an AI API key, it also has one write questions about your exact diff and mixes them in.",
+    "Starts straight away with questions from the bank. If you have Claude Code, Cursor or an AI API key, PopPR also writes questions about your specific code and mixes them in as they arrive.",
   );
 
   if (opts.certify) {
     out.push(
       "",
-      `This repo asks contributors to certify. Answer under the clock, then keep going untimed until every question is right. You cannot fail it and the number of tries is never published. Post the comment it gives you at the end and the \`${STATUS_CONTEXT}\` check turns green.`,
+      `This repo requires a passing quiz before merge. Answer under the clock, then keep going untimed until every question is right. There is no score to beat and the number of tries is never published, so you cannot fail it. Post the comment it gives you at the end and the \`${STATUS_CONTEXT}\` check turns green.`,
     );
   }
 
   out.push(
     "",
-    `<details><summary>No terminal, or happy with bank questions? Play in your browser.</summary>`,
+    `<details><summary>No terminal? Play in your browser instead.</summary>`,
     "",
-    `**[Take the quiz](${quizUrl(opts)})** · nothing to install, no account. Asks from the question bank only, so no AI-written questions. Public repositories only: the browser cannot read a private diff.`,
+    `**[Take the quiz](${quizUrl(opts)})** · Nothing to install and no account needed. The browser asks from the question bank only, so it writes nothing about your specific code, and it works on public repositories because it cannot read a private diff.`,
     "</details>",
   );
 
