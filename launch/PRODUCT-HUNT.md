@@ -1,11 +1,7 @@
-# Product Hunt launch kit
+# Product Hunt
 
-Everything below is ready to paste. Fields are in the order Product Hunt asks
-for them.
-
-**Post at 12:01am PT.** The leaderboard runs on a Pacific-time day, so anything
-posted later is competing with a head start it cannot recover. Second best is
-any time before 6am PT.
+**Post at 12:01am PT.** The leaderboard runs on a Pacific day, so anything later
+starts behind. Second best is before 6am PT.
 
 ---
 
@@ -17,40 +13,44 @@ PopPR
 
 ## Tagline
 
-60 characters max. This one is 58.
+60 characters max. Lead with what it does, because that is the only line most
+people read.
 
 ```
-Does the contributor who opened this PR understand it?
+A 3-minute quiz on the PR you just shipped
 ```
 
-Backups, if you want a more literal one:
+41 characters. Backups:
 
 ```
-A pop quiz on the pull request you just shipped
+Understand your own AI slop
 ```
 ```
-Check the author, not just the code, on every PR
+Quiz yourself on the code your agent wrote
 ```
+
+The slop one is funnier and it is the README hero. It also does not say what the
+product does, which costs you installs on a page people scan. Use it if you want
+the personality; use the first one if you want the downloads.
 
 ## Description
 
-260 characters max. This is 249.
+260 characters max. This is 248.
 
 ```
-Tests check the code. Linters check the style. Nothing checks the author. PopPR asks whoever opened the PR multiple-choice questions about the lines they changed, and posts whether they got them right. One command to add to any repo.
+Claude Code made us all productive. It also slowed our learning. PopPR reads the diff of the PR you just opened, finds the engineering concepts in it, and quizzes you on those exact lines. 3 minutes, runs locally, no account. npx @quokkapride/poppr
 ```
+
+The install command is in the description on purpose. Someone who never opens
+the comments can still copy it.
 
 ## Topics
-
-Pick 3. In priority order:
 
 ```
 Developer Tools
 GitHub
 Open Source
 ```
-
-Alternates if any of those are unavailable: Productivity, Education, Artificial Intelligence.
 
 ## Links
 
@@ -62,76 +62,92 @@ Alternates if any of those are unavailable: Productivity, Education, Artificial 
 
 ## First comment
 
-Post this yourself the minute the launch goes live. Most visitors read the maker
-comment before anything else, so it carries more weight than the description.
+Post it within a minute of going live. Written to get a developer from reading
+to installed in under thirty seconds, so the command comes early and the
+argument comes after.
 
 ```
 Hi Product Hunt 👋
 
-I built PopPR after a specific bad afternoon. I reviewed a pull request, asked about one of the lines, and got an answer that made it obvious the contributor had not read it either. An agent wrote it, they shipped it, and neither of us understood it.
+Claude Code has made me far more productive. It has also slowed down my learning. I suspect a lot of you are in the same place: shipping more, understanding less of what you ship.
 
-That is not a rare story any more, and nothing in CI catches it. Tests check the code. Linters check the style. Nothing checks the author.
+PopPR is a three-minute quiz on your own pull request. It reads the diff, finds the engineering concepts in it, and asks you about those exact lines.
 
-PopPR asks them. It reads the diff, finds the concepts the changed lines exercise, and serves multiple-choice questions about those lines on a three-minute clock. The PR comment shows which concept came from which line, so a reviewer can agree or disagree without opening a file.
+Try it on whatever branch you are on right now:
 
-Two decisions the whole thing rests on, which I would rather state than have found:
+npx @quokkapride/poppr
 
-**It publishes completion, never a score.** Maintainers can require a poppr/certified check before merge, but you cannot fail it. Wrong answers come back, untimed, until they are right, and how many tries it took stays private. A tool that publishes "this contributor scored 3/10" is a tool contributors route around, and a three-minute quiz is not a hiring bar.
+That is the whole setup. No account, no API key, no signup, and it starts in about 50 milliseconds. 328 hand-written questions across 9 languages. Nothing is sent to me, because there is no PopPR server.
 
-**The questions are the whole product, so I measure them like it.** Multiple choice rots when anything other than the content predicts the right answer. Mine did, three times. The first version had the correct answer as the longest option in 81% of questions. Fixing that overcorrected until it was the shortest 48% of the time. Fixing THAT produced a signature phrase that appeared in five correct answers and zero distractors.
+If you already have Claude Code, Cursor or an API key, it also asks that model to write questions about your specific code, and those stream in while you are already playing. Without one it plays the same run at the same speed.
 
-So the build now fails on the only question that matters: what would someone score if they never read the question at all? Chance is 25%. It scores 24%.
+For teams: `npx @quokkapride/poppr init --require` adds a check to every PR. Nobody can fail it, wrong answers just come back until they are right, and no score is ever published.
 
-Coverage is measured the same way. 487 merged PRs from 28 repos that were never used to write a single rule: 60% of PRs containing code match at least one concept. The rest get general engineering questions rather than an empty screen.
+Free and MIT. Tell me where the questions are wrong on your code, because that is the part I cannot test on my own.
+```
 
-Free, MIT, no account, no API key. `npx @quokkapride/poppr --local` quizzes your current branch in about 50 milliseconds. `npx @quokkapride/poppr init` adds it to a repo.
+**Reply to your own comment a few minutes later** with the credibility note. It
+is the strongest thing about the project and it belongs below the install, not
+above it.
 
-Tell me where the questions are wrong. That is the part I can only get from other people's code.
+```
+One thing I am proud of, for anyone who has written a quiz before.
+
+Multiple choice rots when anything other than the content predicts the answer. Mine rotted three times. The first version had the correct answer as the longest option in 81% of questions, written by me, the day after I wrote the rule against doing that. Fixing it overcorrected to 48% shortest. Fixing that produced a phrase that showed up in five correct answers and zero wrong ones.
+
+So the build now measures what someone scores if they never read the question at all. Chance is 25%. It was 45%. It is now 24%, and CI fails if it drifts.
 ```
 
 ---
 
 ## Gallery
 
-Product Hunt shows the first image everywhere, so it carries the whole pitch.
+The first image carries the whole pitch.
 
-1. **`demo/poppr.gif`** (already in the repo). A real run: question, answer, review screen.
-2. **`launch/assets/hosted-brief.png`** (captured). The brief screen on a real PR, reading "30 concepts in this diff · 20 questions". Good second slot because it is proof rather than a claim.
-3. **The PR comment.** Screenshot a real one showing the concept-to-line table. The maintainer's "oh, I see" moment, and still to capture.
-4. **The certify check.** Screenshot `poppr/certified` green in the checks list on a PR.
-5. **`launch/assets/audit-output.txt`** (captured). Render it as a terminal image. This is the credibility shot for a technical audience.
+1. `demo/poppr.gif` in the repo. A real run: question, answer, review screen.
+2. `launch/assets/hosted-brief.png`. A real PR reading "30 concepts in this diff, 20 questions". Proof rather than a claim.
+3. The PR comment showing the concept-to-line table. **Still to capture.**
+4. `poppr/quiz-passed` green in a PR's checks list. **Still to capture.**
+5. `launch/assets/audit-output.txt` rendered as a terminal image.
 
-Still needed: 3 and 4. Open the next PR on the repo, wait for the Action to
-comment, and screenshot at 2x. PR #3's comment is from the 0.2 bank and reads
-"2 questions", so do not use it: the whole point is that 0.3 finds 20.
+For 3 and 4, open the next PR on the repo and screenshot at 2x once the Action runs.
 
 ---
 
-## Answers to the questions you will get
+## Answers you will need
 
-**"Can't people just paste the question into ChatGPT?"**
-Yes, and the timed run is not the point. The gate publishes that someone worked through every question about their own diff, which is the engagement that was missing. If someone routes a three-minute quiz about their own PR through a model to avoid reading it, you have learned something useful about that contributor.
+**"Can't people paste the question into ChatGPT?"**
 
-**"Isn't this condescending to contributors?"**
-It is off by default and reports rather than blocks. When a maintainer does turn the gate on, nobody can fail it and no score is published. Compare that to the alternative, where a maintainer decides on their own that your PR is not worth the review time and never tells you.
+```
+Yes, and the timed run is not the point. What the check publishes is that someone worked through every question about their own diff, untimed, until each was right. If a contributor routes a three-minute quiz about their own patch through a model to avoid reading it, you have learned something about that contributor.
+```
+
+**"Is this condescending to contributors?"**
+
+```
+The default is a CLI you run on yourself. The repo check is opt in for a maintainer, nobody can fail it, and no score is published. The alternative most maintainers use today is deciding on their own that a PR is not worth the review time, and never telling the author.
+```
 
 **"Does it work on my language?"**
-JS/TS, React, Python, Go, Rust, Java, Ruby, C/C++ and SQL today, with measured per-language numbers in the README. Anything else gets the general engineering questions rather than nothing.
+
+```
+JS/TS, React, Python, Go, Rust, Java, Ruby, C/C++ and SQL. Measured on 487 merged PRs from 28 repos that never fed a single rule: 6 in 10 of the PRs with code in them match a concept. The rest get general engineering questions rather than an empty screen.
+```
 
 **"Does it see my code?"**
-Quick mode is regex over your diff and runs offline. Smart and deep modes send the diff to whichever backend you already pay for. The Action never checks out or executes PR code at all.
 
-**"What about false positives?"**
-Real, and the comment shows the line that triggered each concept so you can disagree with it in one glance. `--smart` spends one model call filtering them.
+```
+There is no PopPR server. The default run is regex over your diff plus a bundled question bank. If you have an AI backend it also writes questions about your code, using your own account and your own key. The GitHub Action never checks out or runs PR code at all.
+```
 
 ---
 
-## Launch-day checklist
+## Launch day
 
-- [ ] Publish npm 0.3.0 and push the git tag first, so the links work
-- [ ] Screenshot the PR comment and the green certify check
-- [ ] Schedule the post for 12:01am PT
-- [ ] Post the maker comment within a minute of going live
-- [ ] Post the LinkedIn version (see `LINKEDIN.md`) at 8am your time
-- [ ] Reply to every comment within the first four hours, which is when ranking is decided
-- [ ] Do not ask for upvotes anywhere. It is against the rules and it is detectable
+- [ ] Publish the current version and confirm npm renders the README
+- [ ] Screenshot the PR comment and the green check
+- [ ] Schedule for 12:01am PT
+- [ ] Maker comment within a minute of going live
+- [ ] LinkedIn at 8am your time (see `LINKEDIN.md`)
+- [ ] Reply to every comment in the first four hours, which is when ranking is decided
+- [ ] Never ask for upvotes. It breaks the rules and it is detectable
