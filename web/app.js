@@ -737,6 +737,11 @@ function showCertified() {
 
 document.addEventListener("keydown", (e) => {
   if (e.repeat) return; // holding a key must not answer question after question
+  // Ctrl+A, Ctrl+D and Ctrl+F are select-all, bookmark and find. Without this
+  // the browser did its thing AND the run answered that letter, so reaching for
+  // find during a question silently burned it. The CLI has always had this
+  // guard; the web front end was written from the same shape and missed it.
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
   const key = e.key.toUpperCase();
   if (!["A", "B", "C", "D", "E", "F"].includes(key)) return;
   if (!$("game").hidden) answer(key);

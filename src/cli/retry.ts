@@ -1,5 +1,5 @@
 import readline from "node:readline";
-import pc from "picocolors";
+import pc from "./colors.js";
 import type { Answered, Question } from "../core/types.js";
 import type { MasteryLoop } from "../core/mastery.js";
 import { append, draw, enterFullScreen, leaveFullScreen } from "./screen.js";
@@ -136,6 +136,12 @@ function rawKeys(): () => void {
  */
 export function confirmKey(key: string, prompt: string): Promise<boolean> {
   return new Promise((resolve) => {
+    // setRawMode does not exist on a non-TTY stdin, and calling it there threw a
+    // TypeError immediately after a successful `--certify` run printed
+    // "Certified.", turning a finished certification into exit code 1. Declining
+    // is the safe answer when there is nobody at the keyboard to accept.
+    if (!process.stdin.isTTY) return resolve(false);
+
     readline.emitKeypressEvents(process.stdin);
     const wasRaw = process.stdin.isRaw;
     process.stdin.setRawMode(true);

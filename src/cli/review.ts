@@ -1,4 +1,4 @@
-import pc from "picocolors";
+import pc from "./colors.js";
 import type { RunResult } from "../core/types.js";
 import { scorecard, verdictLine, formatDuration } from "../core/scorecard.js";
 import type { ConceptTrend } from "../core/history.js";

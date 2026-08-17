@@ -1,5 +1,57 @@
 # Changelog
 
+## 0.4.0
+
+**AI-written questions are now on by default, and still never required.** If you
+have Claude Code, Cursor, an API key or Ollama, PopPR asks it to write questions
+about your actual diff and streams them in while you are already playing. If you
+have none of those, the run is byte-for-byte the one you got before, at the same
+speed, and nothing on screen mentions a model. `--quick` skips the attempt.
+`--deep` demands it and tells you when it cannot have it.
+
+The old behaviour is `--quick`. Nothing about the curated bank changed.
+
+**PopPR runs on Windows.** It was written and tested only on macOS, and several
+things broke there that no amount of reading catches:
+
+- The AI backends could never launch. npm installs its global CLIs as `.cmd`
+  shims, libuv's path search only tries `.com` and `.exe`, and Node refuses to
+  exec a batch file directly since the fix for CVE-2024-27980. Detection said
+  Claude Code was present and every launch failed. Backends are now resolved to
+  a real path and batch shims run through `cmd.exe`.
+- `npm test` could not run at all: it depended on the shell expanding
+  `test/*.test.mjs`, which cmd.exe and PowerShell do not do.
+- Colour codes leaked into redirected output, because picocolors treats every
+  win32 process as a terminal.
+- CRLF checkouts made `poppr init` report that its own untouched workflow file
+  "differs", and turned any local diff into a whole-file rewrite.
+
+CI now runs the full matrix on ubuntu, windows and macos across Node 18, 20 and
+22. Every one of the above was invisible until a job ran on Windows.
+
+**The certify check is `poppr/quiz-passed` everywhere.** The rename landed in
+0.3.1 but `action.yml`, the docs and the launch material still said
+`poppr/certified`. A maintainer following those docs marked a check required
+that is never posted, which blocks every PR in the repo on a status that stays
+pending forever.
+
+Also fixed:
+
+- Ctrl+D, Ctrl+A and Ctrl+F silently answered the current question, in both the
+  CLI and the browser version.
+- A run with piped stdin repainted thousands of unanswerable frames instead of
+  saying it needs a terminal.
+- A failed history write took the whole run down with it, losing the score
+  between the last answer and the review screen.
+- Streaks rolled over at UTC midnight rather than yours, so players far enough
+  east or west lost days they had played. `POPPR_HOME` now overrides where the
+  history lives, which also lets WSL and native Windows share one streak.
+- Two detection rules anchored `$` without the `m` flag, so their end-of-line
+  case only ever matched the last line of a file.
+- Files with non-ASCII names were dropped from the diff entirely.
+- The call-site scan ran up to 25 `git grep` processes in series on every run,
+  including runs that never used the result.
+
 ## 0.3.2
 
 **The README now says that `--require` does not block a merge on its own.** It

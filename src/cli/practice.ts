@@ -1,4 +1,4 @@
-import pc from "picocolors";
+import pc from "./colors.js";
 import { bankConcepts, bankQuestions } from "../core/bank.js";
 import {
   conceptsDueForReview,
@@ -30,6 +30,13 @@ export async function runPractice(opts: {
   concept?: string;
   time?: string;
 }): Promise<void> {
+  // Same reason as the main run: raw mode needs a real terminal, and without one
+  // the repaint loop just scrolls frames nobody can answer. See index.ts.
+  if (!process.stdin.isTTY) {
+    console.error(pc.yellow("\n  PopPR needs an interactive terminal to play.\n"));
+    process.exit(1);
+  }
+
   const history = await loadHistory();
   const seconds = Number(opts.time) || 180;
 

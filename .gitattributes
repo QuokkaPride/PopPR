@@ -1,0 +1,20 @@
+# Normalise line endings in the repository to LF.
+#
+# Windows git installs default to core.autocrlf=true, which rewrites the working
+# tree to CRLF on checkout. Without this file that produced two problems that
+# looked unrelated: `poppr init` compared its generated workflow byte-for-byte
+# against a CRLF copy of the same content and reported that the file "differs",
+# so the setup command was no longer idempotent; and every local diff read as a
+# whole-file rewrite, which swamped concept detection with lines nobody touched.
+#
+# `text=auto` lets git decide what is text, and `eol=lf` pins what lands in the
+# working tree, so a Windows contributor and a macOS one produce identical bytes.
+* text=auto eol=lf
+
+# Binary, and must never be line-ending converted.
+*.gif binary
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary

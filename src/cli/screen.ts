@@ -16,9 +16,22 @@
  * was on screen when we leave. Everything worth keeping (the review screen, the
  * certification comment, the second-pass summary) prints after we leave, so it
  * lands in the real scrollback and stays there.
+ *
+ * Windows Terminal, ConPTY and every modern conhost handle 1049. A Windows old
+ * enough that libuv falls back to its own ANSI emulation swallows it, and the
+ * game then clears the real console in place: the same behaviour every platform
+ * had before this file existed, so it degrades to the old experience rather than
+ * to a broken one. That case is not worth sniffing for, because every heuristic
+ * for it (WT_SESSION and friends) also reports false on modern conhost, where
+ * the alternate buffer works perfectly.
  */
 
-const SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
+/**
+ * SIGBREAK is Windows-only (Ctrl+Break) and is the one signal a Windows user can
+ * send that the others do not cover. Listening for a signal a platform never
+ * raises is harmless, so the list stays flat rather than branching on platform.
+ */
+const SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP", "SIGBREAK"] as const;
 
 let active = false;
 let painted: string | null = null;

@@ -12,6 +12,24 @@ async function run(cmd: string, args: string[], cwd: string): Promise<string> {
   return stdout;
 }
 
+/**
+ * Flags every `git diff` here needs, for reasons that only show up off macOS.
+ *
+ * `core.quotepath=false` stops git C-escaping any path with a byte over 0x7f,
+ * so `café.ts` arrives as itself rather than as `"caf\303\251.ts"`. The quoted
+ * form did not match the header pattern in splitPatch, so those files were
+ * dropped from the context entirely and a PR touching only them got quizzed on
+ * nothing it contained. Non-ASCII paths are ordinary on a Windows machine whose
+ * owner has an accent in their name.
+ *
+ * `--ignore-cr-at-eol` keeps a CRLF checkout from reading as a rewrite of every
+ * line. Windows git installs default to core.autocrlf=true, and without this a
+ * one-line change in a file with LF in the index came back as a whole-file diff
+ * that swamped concept detection with lines nobody touched.
+ */
+const GIT_DIFF_FLAGS = ["-c", "core.quotepath=false"];
+const DIFF_OPTS = ["--ignore-cr-at-eol"];
+
 async function tryRun(cmd: string, args: string[], cwd: string): Promise<string | null> {
   try {
     return await run(cmd, args, cwd);
@@ -64,7 +82,7 @@ function parseNumstat(numstat: string): Map<string, { additions: number; deletio
   for (const line of numstat.split("\n")) {
     if (!line.trim()) continue;
     const [add, del, ...rest] = line.split("\t");
-    const path = rest.join("\t");
+    const path = decodePath(rest.join("\t"));
     if (!path) continue;
     map.set(path, {
       // Binary files report "-" rather than a count.
@@ -87,13 +105,64 @@ function splitPatch(fullPatch: string): Map<string, string> {
   const out = new Map<string, string>();
   const chunks = fullPatch.split(/^diff --git /m).filter(Boolean);
   for (const chunk of chunks) {
-    const header = chunk.split("\n", 1)[0] ?? "";
-    // "a/src/foo.ts b/src/foo.ts" -> src/foo.ts (prefer the b/ side; it's the new name)
-    const match = header.match(/\s+b\/(.+)$/);
-    const path = match?.[1]?.trim();
+    const header = (chunk.split("\n", 1)[0] ?? "").replace(/\r$/, "");
+    const path = headerPath(header);
     if (path) out.set(path, "diff --git " + chunk);
   }
   return out;
+}
+
+/**
+ * The new-side path out of a `diff --git` header.
+ *
+ * core.quotepath=false covers non-ASCII, but git still quotes a path holding a
+ * quote, a backslash or a control character. An unhandled one is invisible
+ * rather than loud: the file is simply absent from the context, and nothing
+ * anywhere says so.
+ */
+function headerPath(header: string): string | null {
+  const quoted = header.match(/ "b\/((?:[^"\\]|\\.)*)"\s*$/);
+  if (quoted?.[1] !== undefined) return unescapeGitPath(quoted[1]);
+  // "a/src/foo.ts b/src/foo.ts" -> src/foo.ts (prefer the b/ side, it is the new name)
+  return header.match(/\s+b\/(.+)$/)?.[1]?.trim() ?? null;
+}
+
+/**
+ * One git-emitted path, unquoted if it needs it.
+ *
+ * Every git surface has to agree on the spelling. The patch header decodes its
+ * own quoting, so numstat and name-status have to as well: otherwise a quoted
+ * path keys the stats map as `"a\303\251.ts"` and the patch map as `aé.ts`, and
+ * one file becomes two DiffFile entries, one with no patch and one with no
+ * line counts.
+ */
+function decodePath(field: string): string {
+  const s = field.trim();
+  if (!s.startsWith('"') || !s.endsWith('"') || s.length < 2) return s;
+  return unescapeGitPath(s.slice(1, -1));
+}
+
+const SIMPLE_ESCAPES: Record<string, number> = {
+  '"': 0x22, "\\": 0x5c, a: 0x07, b: 0x08, f: 0x0c, n: 0x0a, r: 0x0d, t: 0x09, v: 0x0b,
+};
+
+/** git's C-style quoting: \\ and \" for literals, \nnn octal for raw bytes. */
+function unescapeGitPath(s: string): string {
+  const bytes: number[] = [];
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] !== "\\") {
+      for (const b of Buffer.from(s[i], "utf8")) bytes.push(b);
+      continue;
+    }
+    const next = s[++i] ?? "";
+    if (/^[0-7]{3}$/.test(s.slice(i, i + 3))) {
+      bytes.push(parseInt(s.slice(i, i + 3), 8));
+      i += 2;
+    } else {
+      bytes.push(SIMPLE_ESCAPES[next] ?? next.charCodeAt(0));
+    }
+  }
+  return Buffer.from(bytes).toString("utf8");
 }
 
 export interface ReadDiffOptions {
@@ -118,9 +187,9 @@ export async function readDiff(opts: ReadDiffOptions = {}): Promise<PrContext> {
   // work and not everything that landed on main since it forked.
   const range = `${base}...HEAD`;
 
-  const numstat = await run("git", ["diff", "--numstat", range], cwd);
-  const nameStatus = await run("git", ["diff", "--name-status", range], cwd);
-  const fullPatch = await run("git", ["diff", "--unified=8", range], cwd);
+  const numstat = await run("git", [...GIT_DIFF_FLAGS, "diff", ...DIFF_OPTS, "--numstat", range], cwd);
+  const nameStatus = await run("git", [...GIT_DIFF_FLAGS, "diff", ...DIFF_OPTS, "--name-status", range], cwd);
+  const fullPatch = await run("git", [...GIT_DIFF_FLAGS, "diff", ...DIFF_OPTS, "--unified=8", range], cwd);
 
   const stats = parseNumstat(numstat);
   const patches = splitPatch(fullPatch);
@@ -129,7 +198,7 @@ export async function readDiff(opts: ReadDiffOptions = {}): Promise<PrContext> {
   for (const line of nameStatus.split("\n")) {
     if (!line.trim()) continue;
     const [letter, ...rest] = line.split("\t");
-    const path = rest[rest.length - 1];
+    const path = decodePath(rest[rest.length - 1] ?? "");
     if (path) statuses.set(path, statusFromLetter(letter));
   }
 
@@ -270,19 +339,28 @@ export async function findCallSites(
   const changedPaths = new Set(ctx.files.map((f) => f.path));
   const result: Record<string, string[]> = {};
 
-  for (const symbol of [...symbols].slice(0, 25)) {
-    const out = await tryRun(
-      "git",
-      ["grep", "-l", "-w", "--", symbol],
-      cwd,
+  // Concurrently, in bounded batches. This used to be a sequential loop of up to
+  // 25 `git grep` calls, and process creation on Windows costs roughly an order
+  // of magnitude more than it does on POSIX, so the serial version added seconds
+  // to a path whose whole selling point is that it starts instantly. The cap
+  // exists so a large repo does not answer with 25 simultaneous greps.
+  const wanted = [...symbols].slice(0, 25);
+  const BATCH = 8;
+
+  for (let i = 0; i < wanted.length; i += BATCH) {
+    const found = await Promise.all(
+      wanted.slice(i, i + BATCH).map(async (symbol) => {
+        const out = await tryRun("git", ["grep", "-l", "-w", "--", symbol], cwd);
+        if (!out) return null;
+        const callers = out
+          .split(/\r?\n/)
+          .map((s) => s.trim())
+          .filter((p) => p && !changedPaths.has(p) && !isNoise(p))
+          .slice(0, 6);
+        return callers.length ? ([symbol, callers] as const) : null;
+      }),
     );
-    if (!out) continue;
-    const callers = out
-      .split("\n")
-      .map((s) => s.trim())
-      .filter((p) => p && !changedPaths.has(p) && !isNoise(p))
-      .slice(0, 6);
-    if (callers.length) result[symbol] = callers;
+    for (const hit of found) if (hit) result[hit[0]] = hit[1];
   }
   return result;
 }

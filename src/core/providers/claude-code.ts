@@ -1,5 +1,5 @@
-import { spawn } from "node:child_process";
 import type { Provider } from "../types.js";
+import { spawnCli } from "./spawn.js";
 
 /**
  * Shells out to Claude Code's headless mode. This is the default backend
@@ -7,7 +7,7 @@ import type { Provider } from "../types.js";
  * definition, the people who already have Claude Code installed — so poppr
  * costs them nothing extra and costs us nothing at all.
  */
-export function claudeCodeProvider(bin = "claude"): Provider {
+export function claudeCodeProvider(bin = "claude", resolved: string | null = null): Provider {
   return {
     name: "claude-code",
     generate(prompt: string): Promise<string> {
@@ -15,11 +15,13 @@ export function claudeCodeProvider(bin = "claude"): Provider {
         // --print: non-interactive. Tools are disabled because we hand the model
         // the entire diff up front; letting it wander the filesystem would be
         // slower and would leak repo contents we deliberately filtered out.
-        const child = spawn(
-          bin,
-          ["--print", "--output-format", "json", "--allowed-tools", ""],
-          { stdio: ["pipe", "pipe", "pipe"] },
-        );
+        const child = spawnCli(bin, resolved, [
+          "--print",
+          "--output-format",
+          "json",
+          "--allowed-tools",
+          "",
+        ]);
 
         let stdout = "";
         let stderr = "";

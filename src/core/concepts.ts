@@ -48,7 +48,10 @@ export const RULES: ConceptRule[] = [
   { concept: "number-parsing", pattern: /\b(parseInt|parseFloat)\s*\(|\bNumber\s*\(/, extensions: [".js", ".ts", ".jsx", ".vue", ".svelte", ".tsx", ".mjs"] },
   { concept: "async-return-value", pattern: /\basync\s+(function|\w+\s*\(|\([^)]*\)\s*=>)/, extensions: [".js", ".ts", ".jsx", ".vue", ".svelte", ".tsx", ".mjs"] },
   { concept: "ts-as-cast", pattern: /\bas\s+[A-Z][\w<>\[\]]*/, extensions: [".ts", ".tsx"] },
-  { concept: "ts-non-null-assertion", pattern: /[\w\)\]]!\s*[.;,)\]]|[\w\)\]]!\s*$/, extensions: [".ts", ".tsx"] },
+  // /m: rules run against a file's added lines joined into one blob, so a bare
+  // `$` anchors to the end of the whole file and the end-of-line alternative
+  // could only ever fire on its very last line.
+  { concept: "ts-non-null-assertion", pattern: /[\w\)\]]!\s*[.;,)\]]|[\w\)\]]!\s*$/m, extensions: [".ts", ".tsx"] },
 
   // ── React ────────────────────────────────────────────────────────────────
   { concept: "useeffect-deps", pattern: /useEffect\s*\(/, extensions: [".jsx", ".tsx", ".js", ".ts"] },
@@ -208,7 +211,11 @@ export const RULES: ConceptRule[] = [
   { concept: "retry-backoff", pattern: /\bbackoff\b|\bretries\b|\bretrying\b|\bretry\s*\(|\bmax_?retr(y|ies)\b|\bretry_?(count|limit|delay|after)\b|\battempts?\s*[<>+]/i },
   { concept: "cache-invalidation", pattern: /\bcache\b|\bmemo(ize)?\b|\bttl\b/i },
   { concept: "missing-timeout", pattern: /\bfetch\s*\(|axios\.|http\.(get|post)|requests\.(get|post)/ },
-  { concept: "unbounded-growth", pattern: /new\s+(Map|Set)\s*\(\s*\)|=\s*\{\s*\}\s*;?\s*$|defaultdict/ },
+  // /m for the same reason as ts-non-null-assertion above, and [ \t] rather
+  // than \s inside the empty-literal alternative: \s matches \n, so with /m the
+  // gap could span a line break and `= {` followed by a populated body on the
+  // next line would read as an empty object.
+  { concept: "unbounded-growth", pattern: /new\s+(Map|Set)\s*\(\s*\)|=[ \t]*\{[ \t]*\}[ \t]*;?[ \t]*$|defaultdict/m },
   { concept: "env-secrets", pattern: /process\.env\.|os\.environ|getenv\(/ },
   { concept: "auth-check", pattern: /\b(isAuthenticated|requireAuth|checkPermission|authorize|jwt|bearer)\b/i },
   { concept: "float-money", pattern: /\b(price|amount|total|cost|balance)\b\s*[:=]\s*[\d.]*\.\d/i },

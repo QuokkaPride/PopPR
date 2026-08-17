@@ -5,7 +5,7 @@ Pop quiz for your pull request. Runs **after** you ship, not before.
 Quizzing yourself is never a gate, and any change that makes it feel like one is
 wrong. The single exception is `certify`, which a maintainer opts into for their
 own repo: contributors must answer every question correctly before the
-`poppr/certified` check goes green. You cannot fail it, only completion is
+`poppr/quiz-passed` check goes green. You cannot fail it, only completion is
 published, and it blocks a merge only if the maintainer marks that check
 required. See decision 1a in `HANDOFF.md` before touching any of it.
 
@@ -23,7 +23,7 @@ job:
    them AI-assisted every month, and the reviewer has no way to tell a
    contributor who understands their patch from one who pasted it. Reviewing the
    second kind costs more than writing it yourself. This is the buyer: they turn
-   on `certify`, mark `poppr/certified` required, and a merge now needs the
+   on `certify`, mark `poppr/quiz-passed` required, and a merge now needs the
    author to have demonstrated they can answer questions about their own diff.
 2. **The engineering lead.** Same problem inside a company, without the branch
    protection. They want the team learning from what they ship rather than
@@ -62,11 +62,12 @@ a repo they are responsible for, in a spare ten minutes.
 npm run build        # tsc -> dist/
 npm test             # build + bank audit. Run before every commit.
 npm run audit:bank   # the quality gate on its own
-node dist/cli/index.js --local          # try it against the current branch
+node dist/cli/index.js --local          # bank instantly, AI questions stream in
+node dist/cli/index.js --local --quick  # curated bank only, no AI attempted
 node dist/cli/index.js --local --smart  # same, but AI picks the concepts
 node dist/cli/index.js --detect         # what would it ask? no game, no clock
 node dist/cli/index.js <pr> --certify   # timed pass, then master every question
-node dist/cli/index.js --local --deep   # bank instantly, AI questions stream in
+node dist/cli/index.js --local --deep   # as the default, but complains with no backend
 npm run build:web                       # web/vendor/ for the browser version
 ```
 
@@ -110,16 +111,21 @@ directly, so anything that writes to stdout or reads `process.argv` belongs in
 
 | mode | selection | questions | time to first question |
 |---|---|---|---|
-| quick (default) | regex over added lines | curated bank | ~50ms |
+| default (backend found) | regex, then AI | bank first, AI streams in | ~50ms |
+| default (no backend) | regex over added lines | curated bank | ~50ms |
+| `--quick` | regex over added lines | curated bank | ~50ms |
 | `--smart` | one AI call picks concepts | curated bank | ~12s |
 | `--deep` | regex, then AI | bank first, AI streams in | ~50ms |
 
 `--deep` used to block for three minutes before the first question. It now seeds
 from the bank and streams, so it is quick mode that gets better while you play.
+That is what lets it be the default.
 
-Quick mode is the default **because a tool you have to configure before the
-first play is a tool nobody plays.** It needs no key, no network, no Claude Code.
-Do not add a required setup step to the default path.
+**The default tries for AI questions and never requires them.** With no backend
+installed it plays the curated bank, silently, at the same speed. Do not add a
+required setup step to the default path, and do not print a warning about a
+missing backend on a run that did not ask for one: `--deep` asked, so it hears
+about it; a plain `poppr` did not. See decision 3 in `HANDOFF.md`.
 
 ## The one invariant that matters
 

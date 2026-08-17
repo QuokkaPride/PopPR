@@ -59,7 +59,7 @@ So `certify` exists, with these properties, each of which is load-bearing:
   maintainer learning that a contributor needed six tries turns a learning tool
   into a humiliation.
 - **The hard gate is the maintainer's own act.** PopPR only ever posts a
-  `poppr/certified` commit status. It blocks a merge only if the maintainer
+  `poppr/quiz-passed` commit status. It blocks a merge only if the maintainer
   marks that context required in branch protection, which keeps the decision
   where it belongs.
 - **AI-assisted answers are accepted.** Verification would mean grading on a
@@ -74,12 +74,25 @@ Questions, options, correct answer and explanations are precomputed, so the quiz
 runs at zero latency with no model in the loop. That is what makes a timer
 possible: you can't put a clock on something that takes eight seconds to grade.
 
-**3. The default mode uses no AI whatsoever.**
-Quick mode is regex detection over added lines plus a curated question bank:
-~50ms, offline, no API key, no Claude Code install. This is the single most
-important adoption decision in the project. A tool you must configure before the
-first play is a tool nobody plays. **Never add a required setup step to the
-default path.**
+**3. The default path never requires setup.**
+Revised 16 Aug 2026, and the headline used to read "the default mode uses no AI
+whatsoever". The default now *uses* a backend when one happens to be installed
+and silently plays the curated bank when one is not. What did not change is the
+property underneath, which was always the real decision: a machine with no key,
+no Claude Code and no network plays a full run at the same ~50ms
+time-to-first-question, and nothing on screen mentions a model. That is only
+possible because the bank seeds the run instantly and generated questions stream
+in behind it, so the AI is never on the critical path to the first question.
+
+**Never add a required setup step to the default path**, and never let a missing
+backend print anything on a run that did not ask for one: nagging every keyless
+user on every run is how a tool teaches people to ignore it. `--quick` opts out
+of the attempt, `--deep` demands it and says so when it cannot have it.
+
+The cost this buys is real and was accepted deliberately: anyone who does have a
+backend now spends tokens on every run, and on the default 180-second clock the
+generated questions often arrive too late to be asked. That makes "make `--deep`
+fast" (roadmap item 2) load-bearing rather than a nice-to-have.
 
 **4. One clock for the whole run, not per question.**
 Score is "how many in 3:00", which is comparable and shareable, and it composes
@@ -170,9 +183,15 @@ demo/              frames.mjs + render.py generate the README GIF
 
 | mode | selection | questions | measured |
 |---|---|---|---|
-| quick (default) | regex over added lines | curated bank | **53ms** |
+| default, no backend | regex over added lines | curated bank | **53ms** |
+| default, backend present | regex, then AI | bank first, AI streams in | **53ms to first question** |
+| `--quick` | regex over added lines | curated bank | **53ms** |
 | `--smart` | one AI call picks concepts | curated bank | **12.2s** |
-| `--deep` | n/a | AI writes per-PR | **176s to first question** |
+| `--deep` | regex, then AI | bank first, AI streams in | **53ms**, AI lands ~176s |
+
+The default and `--deep` run the same code. They differ only in what happens
+when there is no backend: the default says nothing and plays the bank, `--deep`
+says so on the review screen.
 
 Smart mode exists because pattern matching answers "does the text `Promise.all`
 appear?" when the question you want answered is "is concurrency a real risk

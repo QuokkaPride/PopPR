@@ -30,9 +30,9 @@ inputs:
     description: >-
       Ask the PR author to answer every question about their diff correctly.
       On its own this only asks: the run posts a comment and reports the
-      `poppr/certified` status, and nothing blocks. It becomes a real gate only
+      `poppr/quiz-passed` status, and nothing blocks. It becomes a real gate only
       when the repo adds a branch protection rule requiring that same
-      `poppr/certified` context, which is a decision a maintainer makes
+      `poppr/quiz-passed` context, which is a decision a maintainer makes
       deliberately rather than one they inherit from turning a flag on.
     required: false
     default: "false"

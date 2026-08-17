@@ -1,20 +1,8 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import type { Provider } from "../types.js";
 import { claudeCodeProvider } from "./claude-code.js";
 import { cursorAgentProvider } from "./cursor-agent.js";
 import { apiKeyProvider, detectApiKey } from "./api-key.js";
-
-const exec = promisify(execFile);
-
-async function onPath(bin: string): Promise<boolean> {
-  try {
-    await exec(process.platform === "win32" ? "where" : "which", [bin]);
-    return true;
-  } catch {
-    return false;
-  }
-}
+import { resolveBin } from "./spawn.js";
 
 export interface ProviderChoice {
   provider: Provider;
@@ -29,14 +17,26 @@ export interface ProviderChoice {
  */
 export async function detectProvider(preferred?: string): Promise<ProviderChoice> {
   const candidates: Array<() => Promise<ProviderChoice | null>> = [
-    async () =>
-      (!preferred || preferred === "claude-code") && (await onPath("claude"))
-        ? { provider: claudeCodeProvider(), note: "Claude Code (your existing subscription)" }
-        : null,
-    async () =>
-      (!preferred || preferred === "cursor-agent") && (await onPath("cursor-agent"))
-        ? { provider: cursorAgentProvider(), note: "Cursor Agent (your existing subscription)" }
-        : null,
+    async () => {
+      if (preferred && preferred !== "claude-code") return null;
+      const resolved = await resolveBin("claude");
+      return resolved
+        ? {
+            provider: claudeCodeProvider("claude", resolved),
+            note: "Claude Code (your existing subscription)",
+          }
+        : null;
+    },
+    async () => {
+      if (preferred && preferred !== "cursor-agent") return null;
+      const resolved = await resolveBin("cursor-agent");
+      return resolved
+        ? {
+            provider: cursorAgentProvider("cursor-agent", resolved),
+            note: "Cursor Agent (your existing subscription)",
+          }
+        : null;
+    },
     async () => {
       if (preferred && !["api", "anthropic", "openai", "openrouter", "ollama"].includes(preferred)) {
         return null;
