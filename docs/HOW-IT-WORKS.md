@@ -5,7 +5,7 @@ trust this on a repo they are responsible for.
 
 ## Why the questions are curated rather than generated
 
-A model can write a question about your diff, and `--deep` has one do exactly
+A model can write a question about your diff, and PopPR has one do exactly
 that. The default mode does not, for three reasons:
 
 1. **The semantics of `Promise.all` are identical in every repo on earth.**
@@ -82,7 +82,7 @@ shortest", and applying it makes both numbers read 0%, which looks perfect and
 makes "drop both extremes, guess between the two survivors" worth 56%. Being
 reliably un-extreme is as strong a tell as being reliably extreme.
 
-The same bug was in the `--deep` prompt at 53% correct-is-shortest.
+The same bug was in the generation prompt at 53% correct-is-shortest.
 `npm run test:deep` runs generation against a live model and applies these same
 audits to the result.
 

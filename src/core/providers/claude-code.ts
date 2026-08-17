@@ -1,5 +1,15 @@
-import type { Provider } from "../types.js";
+import type { Provider, Speed } from "../types.js";
 import { spawnCli } from "./spawn.js";
+
+/**
+ * Claude Code inherits the user's configured model when `--model` is absent,
+ * which for most people is the slowest and best one. The opening batch is
+ * racing the run clock, so it names haiku explicitly; later batches say
+ * nothing and get whatever the user chose for themselves.
+ */
+function modelArgs(speed: Speed | undefined): string[] {
+  return speed === "fast" ? ["--model", "haiku"] : [];
+}
 
 /**
  * Shells out to Claude Code's headless mode. This is the default backend
@@ -10,7 +20,7 @@ import { spawnCli } from "./spawn.js";
 export function claudeCodeProvider(bin = "claude", resolved: string | null = null): Provider {
   return {
     name: "claude-code",
-    generate(prompt: string): Promise<string> {
+    generate(prompt: string, opts): Promise<string> {
       return new Promise((resolve, reject) => {
         // --print: non-interactive. Tools are disabled because we hand the model
         // the entire diff up front; letting it wander the filesystem would be
@@ -21,6 +31,7 @@ export function claudeCodeProvider(bin = "claude", resolved: string | null = nul
           "json",
           "--allowed-tools",
           "",
+          ...modelArgs(opts?.speed),
         ]);
 
         let stdout = "";

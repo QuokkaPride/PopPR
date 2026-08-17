@@ -222,7 +222,7 @@ export function detectComment(
     out.push(
       "**PopPR** found no bank concepts in this diff.",
       "",
-      `Nothing here adds code the bank can read: documentation, lockfiles and generated files come up empty on purpose. For questions written about this specific code, \`npx ${pkg} --deep\`.`,
+      `Nothing here adds code the bank can read: documentation, lockfiles and generated files come up empty on purpose. Running it in your terminal also has an AI write questions about this specific code, if you have one set up.`,
     );
     if (opts.certify) {
       out.push("", "Nothing to certify here, so the check passes on its own.");

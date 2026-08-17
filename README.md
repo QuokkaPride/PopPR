@@ -34,7 +34,7 @@ No account, no API key, no signup. Starts in about 50 milliseconds.
 
 Every run starts as a regex pass over your own diff plus a question bank bundled in the package. It works on a plane. Your history sits in `~/.poppr/history.json`.
 
-If you happen to have an AI backend, PopPR also asks it to write questions about your exact code, and those stream in while you are already playing. It uses the AI you already pay for: Claude Code, Cursor, your own API key, or a local Ollama model. Your account, your choice, no middleman. With no backend installed, nothing is sent anywhere and the run is identical. `--quick` skips the attempt entirely.
+When PopPR writes questions about your code it uses the AI you already pay for: Claude Code, Cursor, your own API key, or a local Ollama model. Your account, your choice, no middleman. With no backend installed nothing is sent anywhere, and `--quick` skips the attempt entirely.
 
 The GitHub Action runs inside your CI and reads the diff through the GitHub API. It never checks out or executes PR code, which is what makes it safe on forks and what makes it work on repos that are not Node at all.
 
@@ -76,15 +76,11 @@ The check has two states. Green means the author worked through every question, 
 
 ## What you get
 
-| | questions | needs AI |
-|---|---|---|
-| `poppr --quick` | 328 questions, matched to the concepts in your diff | no |
-| `poppr` | those, plus questions written about your exact code when a backend is available | optional |
-| `poppr --deep` | the same, and it tells you if no backend was found | yes |
+**PopPR ships with a bank of 328 questions.** It analyses your diff, finds the patterns in it, and asks you the bank questions that match what you changed. No API key required, nothing to install, nothing to configure.
 
-The run always starts instantly on bank questions. When there is an AI backend, the written-for-you ones stream in as the model produces them: who calls the function you changed, what breaks if this line goes, why this approach over the obvious one.
+**If you have Claude Code, Cursor, or an AI API key, PopPR also has it write questions about your specific code** for an even more customised run: who calls the function you changed, what breaks if this line goes, why this approach over the obvious one. Those join the run as they arrive and are marked `✦ ai` so you can tell them apart.
 
-**No backend, no problem, and no nagging.** A machine with no key and no Claude Code plays the curated run at the same speed and never hears about a model. `--deep` is for when you want to be told.
+You do not set anything up. If a backend is there, it gets used.
 
 ## Commands
 
@@ -92,8 +88,7 @@ The run always starts instantly on bank questions. When there is an AI backend, 
 poppr                  # your latest PR
 poppr 142              # a specific PR
 poppr --local          # your current branch, no GitHub needed
-poppr --quick          # curated bank only: no AI, no network, no key
-poppr --deep           # require the AI questions, and say so if there is no backend
+poppr --quick          # the question bank only: no AI, no network, no key
 poppr --detect         # what would it ask? no game, no clock
 poppr practice         # drill your weak concepts, no PR involved
 poppr --stats          # what you are getting better at

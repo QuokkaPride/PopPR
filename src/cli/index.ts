@@ -46,18 +46,7 @@ program
   .argument("[pr]", "PR number or URL. Defaults to your most recent PR.")
   .option("--local", "quiz on the local branch diff instead of a GitHub PR")
   .option("--base <ref>", "base ref for --local (default: auto-detected)")
-  // Folded into --deep, which now does the concept classification too. Kept as a
-  // working flag and dropped from help, because two AI modes nobody could tell
-  // apart was the problem.
-  .addOption(new Option("-s, --smart", "deprecated: use --deep").hideHelp())
-  // On by default. Kept as an explicit flag because it also means "I expect the
-  // AI questions", which is what turns a missing backend from silence into a
-  // message worth printing.
-  .option(
-    "-d, --deep",
-    "require the AI questions, and say so if no backend is available (default: use them when one is)",
-  )
-  .option("--quick", "curated bank only: no AI, no network, no key")
+  .option("--quick", "the question bank only: no AI, no network, no key")
   .option("-t, --time <seconds>", "how long the run lasts", "180")
   .option(
     "--certify",
@@ -151,15 +140,6 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
     );
     process.exit(1);
   }
-  if (opts.certify && opts.deep) {
-    console.error(
-      pc.yellow(
-        "\n  Certification asks from the curated bank, so it cannot run with --deep.\n",
-      ),
-    );
-    process.exit(1);
-  }
-
   /**
    * Whether to try for AI-written questions, and whether to say anything when
    * there are none.
@@ -172,19 +152,14 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
    * HANDOFF.md decision 3 intact: first play still needs no key, no install and
    * no config.
    *
-   * `--deep` now means "I want the AI questions and I want to be told if I am
-   * not getting them". Without it, a missing backend is silent, because nagging
-   * every keyless user on every run is how a tool teaches people to ignore it.
-   * `--quick` opts out of the attempt entirely.
-   *
-   * Certification is bank-only by design (the mastery loop needs a fixed pool),
-   * so it never takes this path.
+   * `--quick` opts out of the attempt entirely. Certification is bank-only by
+   * design, because the mastery loop needs a fixed pool, so it never takes this
+   * path either.
    */
-  const wantsAi = !opts.quick && !opts.certify && (opts.deep || !opts.smart);
-  // Naming a provider is asking for it just as plainly as --deep is. Silently
-  // playing the bank after someone typed `--provider ollama` looks like the flag
-  // was ignored, which it effectively was.
-  const aiDemanded = Boolean(opts.deep || opts.provider);
+  const wantsAi = !opts.quick && !opts.certify;
+  // Naming a provider is asking for the AI questions out loud, so a run that
+  // then plays the bank owes that person an explanation. Nobody else gets one.
+  const aiDemanded = Boolean(opts.provider);
 
   const cwd = process.cwd();
   const spin = startSpinner("Finding your PR");
@@ -279,14 +254,10 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
       if (backend) {
       spin.update(`Reading your code  ${pc.dim(`(${backend.note})`)}`);
 
-      // Deep mode absorbed smart mode. They were separate flags and nobody could
-      // tell them apart, which is a product problem rather than a docs one: one
-      // asked a model WHICH bank concepts matter, the other asked it to WRITE
-      // questions, and both were spelled "the AI one". Now the classify call
-      // runs alongside generation and its concepts widen the seeded pool the
-      // moment it lands, roughly twelve seconds in, well before the written-for
-      // -you questions arrive. `--smart` still works and is no longer
-      // advertised.
+      // One small call asking which bank concepts genuinely matter here, run
+      // alongside generation rather than before it. Its concepts widen the
+      // seeded pool the moment they land, roughly twelve seconds in, well
+      // before the written-for-you questions arrive.
       void classifyConcepts(ctx, backend.provider)
         .then((classified) => {
           if (!classified.length) return;
@@ -347,19 +318,9 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
       }
     } else {
       // Pure pattern matching against a curated bank. No model, no network, no
-      // key: a few milliseconds. Reached by `--quick`, `--certify` and a bare
-      // `--smart`. The default path is above, and tries for AI first.
-      let detected = detectConcepts(ctx);
-
-      if (opts.smart) {
-        // Smart mode: same curated questions, but a model decides which
-        // concepts matter here instead of a regex guessing from
-        // keywords. One small call, because the output is a list of slugs.
-        spin.update("Working out what matters in this diff");
-        const { provider } = await detectProvider(opts.provider);
-        const classified = await classifyConcepts(ctx, provider);
-        if (classified.length) detected = classified;
-      }
+      // key: a few milliseconds. Reached by `--quick` and `--certify`. The
+      // default path is above, and tries for AI first.
+      const detected = detectConcepts(ctx);
 
       if (opts.certify) {
         // A different selection from the scored run: smaller, and round-robin
@@ -397,7 +358,7 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
     // keyless machine on the default path plays a curated run and the banner has
     // to say "quick", or the first thing PopPR tells that user is untrue.
     const mode = !wantsAi || backendMissing ? "quick" : "deep";
-    await countdown(ctx.label, seconds, opts.smart && !wantsAi ? "smart" : mode);
+    await countdown(ctx.label, seconds, mode);
 
     const result = await runGame(staircase, {
       durationMs: seconds * 1000,
@@ -450,8 +411,16 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
       console.log(
         pc.dim(`  ${aiWritten} questions were written about your diff, too late to be asked.\n`),
       );
-    } else if (backendMissing && !aiDemanded) {
+    } else if (backendMissing) {
       console.log(pc.dim("  All from the question bank. No AI backend here.\n"));
+    } else if (wantsAi) {
+      // Backend present, nothing landed, nothing errored: the calls were still
+      // running when the clock stopped. This case printed nothing at all, which
+      // is how a feature that never once worked went unnoticed for a year.
+      console.log(
+        pc.dim("  All from the question bank. The AI questions were still being written\n") +
+          pc.dim("  when the clock stopped. `POPPR_DEBUG=1` shows when each batch landed.\n"),
+      );
     }
 
     if (process.env.POPPR_DEBUG) {

@@ -24,7 +24,7 @@ fine in any other directory.
 
 1. **Make the concept detectable.** `src/core/concepts.ts` maps a regex to a
    concept slug. Add a rule if yours is missing. Patterns match added lines
-   only, and loose patterns are fine, since `--smart` filters false positives.
+   only, and loose patterns are fine, since the AI pass filters false positives.
 
 2. **Add the entries** to the right file in `src/bank/`. Three per concept:
    one easy, one medium, one hard, each probing a different facet.
@@ -85,6 +85,6 @@ Also bad: three rephrasings of one idea across the difficulty tiers.
 ## Where help is most welcome
 
 - Bank coverage for Rust, Java, Ruby, Swift, C#
-- Making `--deep` faster than its current ~3 minutes
+- Making generation faster: the first batch now uses the fastest model on the backend, and the later ones are still minutes
 - Unit tests around `diff.ts` and `adaptive.ts`
 - The VS Code / Cursor extension

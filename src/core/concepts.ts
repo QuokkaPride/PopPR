@@ -233,7 +233,7 @@ function extensionOf(path: string): string {
  *   - Config: `cache-invalidation` matched `cache: npm` in a GitHub Actions
  *     workflow.
  *
- * This is not the loose-regex problem that `--smart` exists to solve. Every
+ * This is not the loose-regex problem the AI pass exists to solve. Every
  * bank question is about code semantics, so no question can apply to a
  * changelog or a YAML key no matter how the pattern is tuned.
  */

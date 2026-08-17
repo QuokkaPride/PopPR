@@ -1,4 +1,4 @@
-import type { Difficulty, PrContext, Provider, Question } from "./types.js";
+import type { Difficulty, PrContext, Provider, Question, Speed } from "./types.js";
 import { renderDiff } from "./diff.js";
 
 const ARCHETYPE_GUIDE = `
@@ -75,6 +75,8 @@ export interface GenerateOptions {
   poolSize?: number;
   /** Restrict this call to a subset of archetypes (used for parallel batching). */
   only?: string[];
+  /** Which end of the speed/quality trade this call wants. See Speed. */
+  speed?: Speed;
 }
 
 function buildPrompt(ctx: PrContext, opts: GenerateOptions): string {
@@ -218,7 +220,7 @@ export async function generateQuiz(
   provider: Provider,
   opts: GenerateOptions = {},
 ): Promise<Question[]> {
-  const raw = await provider.generate(buildPrompt(ctx, opts));
+  const raw = await provider.generate(buildPrompt(ctx, opts), { speed: opts.speed });
   return dedupe(coerce(extractJson(raw)));
 }
 
@@ -237,8 +239,22 @@ const BATCHES: string[][] = [
  * Generate in parallel batches, invoking `onBatch` the moment each lands.
  *
  * The caller plays the curated bank from the first millisecond and feeds each
- * batch into the live pool as it lands, so a generation measured at ~176s
- * reaches a run already in progress instead of holding one up.
+ * batch into the live pool as it lands, so slow generation reaches a run
+ * already in progress instead of holding one up.
+ *
+ * The first batch is deliberately tiny and asks the fastest model; the rest are
+ * full size and ask the default one. That split is the difference between the
+ * AI half existing and not, and it is built on one measurement: latency tracks
+ * how much we ask the model to WRITE, not how big the diff is.
+ *
+ * Measured, same backend: 5 questions took 251s, 3 took 171s, 2 took 98s, while
+ * trimming the diff from 32 files to 5 made it SLOWER at the same question
+ * count. An 11-line diff still took 122s for 5 questions. So do not try to make
+ * this faster by sending less code: ask for fewer questions.
+ *
+ * A question that lands after the game has ended is worth nothing however good
+ * it is, so the opener trades depth for arriving, and the later batches spend
+ * the rest of the clock being better.
  */
 export async function generateQuizStreaming(
   ctx: PrContext,
@@ -249,6 +265,10 @@ export async function generateQuizStreaming(
     onBatchError?: (err: unknown, index: number, ms: number) => void;
   } = {},
 ): Promise<Question[]> {
+  // The opener is sized to arrive, not to fill the pool. The bank already has
+  // the pool covered; this one exists so a generated question shows up while the
+  // player is still playing.
+  const OPENER_QUESTIONS = 2;
   const perBatch = Math.max(3, Math.ceil((opts.poolSize ?? 15) / BATCHES.length));
 
   const all: Question[] = [];
@@ -259,7 +279,12 @@ export async function generateQuizStreaming(
   const jobs = BATCHES.map(async (only, index) => {
     try {
       const raw = await provider.generate(
-        buildPrompt(ctx, { ...opts, only, poolSize: perBatch }),
+        buildPrompt(ctx, {
+          ...opts,
+          only,
+          poolSize: index === 0 ? OPENER_QUESTIONS : perBatch,
+        }),
+        { speed: index === 0 ? "fast" : "best" },
       );
       const batch = coerce(extractJson(raw)).map((q, i) => ({
         ...q,
