@@ -224,21 +224,21 @@ export function detectComment(
     `npx ${pkg} ${opts.number}${opts.certify ? " --require" : ""}`,
     "```",
     "",
-    "Starts straight away with questions from the bank. If you have Claude Code, Cursor or an AI API key, PopPR also writes questions about your specific code and mixes them in as they arrive.",
+    "Uses our question bank, plus AI-written questions about your specific code if you have Claude Code, Cursor or an AI API key.",
   );
 
   if (opts.certify) {
     out.push(
       "",
-      `This repo requires a passing quiz before merge. Answer under the clock, then keep going untimed until every question is right. There is no score to beat and the number of tries is never published, so you cannot fail it. Post the comment it gives you at the end and the \`${STATUS_CONTEXT}\` check turns green.`,
+      `This repo requires a passing quiz before merge. Answer under the clock, then keep going untimed until every question is right. No score to beat, and tries are never published, so you cannot fail it. Post the comment it gives you and \`${STATUS_CONTEXT}\` turns green.`,
     );
   }
 
   out.push(
     "",
-    `<details><summary>No terminal? Play in your browser instead.</summary>`,
+    `<details><summary>Want the question bank only, without the AI questions? Play in your browser.</summary>`,
     "",
-    `**[Take the quiz](${quizUrl(opts)})** · Nothing to install and no account needed. The browser asks from the question bank only, so it writes nothing about your specific code, and it works on public repositories because it cannot read a private diff.`,
+    `**[Take the quiz](${quizUrl(opts)})** · Nothing to install, no account, public repositories only.`,
     "</details>",
   );
 
