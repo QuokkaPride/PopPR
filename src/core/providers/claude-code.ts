@@ -4,7 +4,7 @@ import { spawnCli } from "./spawn.js";
 /**
  * Shells out to Claude Code's headless mode. This is the default backend
  * because the people writing incomprehensible AI-generated PRs are, by
- * definition, the people who already have Claude Code installed — so poppr
+ * definition, the people who already have Claude Code installed, so PopPR
  * costs them nothing extra and costs us nothing at all.
  */
 export function claudeCodeProvider(bin = "claude", resolved: string | null = null): Provider {

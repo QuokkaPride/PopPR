@@ -137,7 +137,7 @@ This is not hypothetical. The first hand-written version of this bank had the
 correct answer as the longest option in **81%** of questions.
 
 Fixing that produced the second form and the third. Correct-is-shortest reached
-**48%** while the first number read a healthy 3%, because writing distractors
+**61%** while the first number read a healthy 3%, because writing distractors
 first and matching the correct answer to them pushes it terse. Fixing *that*
 produced a signature phrasing, `", not X"`, in 5 of 21 correct options in one
 file and 0 of 63 distractors: a perfect predictor.

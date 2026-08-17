@@ -25,8 +25,8 @@ function wrap(text: string, width = 66, indent = "     "): string {
 }
 
 /**
- * The review screen. Only misses are shown — nobody reads eight explanations,
- * and showing the ones they got right dilutes the two that matter.
+ * The review screen. Shows only misses: nobody reads eight explanations, and
+ * the ones they got right dilute the two that matter.
  */
 export function renderReview(result: RunResult, runNumber: number, trends: ConceptTrend[]): string {
   const out: string[] = [];

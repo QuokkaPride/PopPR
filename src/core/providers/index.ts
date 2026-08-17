@@ -11,9 +11,9 @@ export interface ProviderChoice {
 }
 
 /**
- * The whole economic model of poppr lives here: we never ship inference, we
- * borrow compute the user already pays for. Order matters — the first two cost
- * the user nothing beyond a subscription they already have.
+ * The whole economic model of PopPR lives here: we never ship inference, we
+ * borrow compute the user already pays for. Order matters, because the first two
+ * cost nothing beyond a subscription they already have.
  */
 export async function detectProvider(preferred?: string): Promise<ProviderChoice> {
   const candidates: Array<() => Promise<ProviderChoice | null>> = [

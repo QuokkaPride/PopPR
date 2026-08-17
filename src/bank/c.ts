@@ -3,9 +3,9 @@ import type { BankEntry } from "./types.js";
 /**
  * C and C++.
  *
- * Four concepts rather than twelve, on purpose. Measured over 77 C-touching PRs
+ * Six concepts rather than twelve, on purpose. Measured over 77 C-touching PRs
  * in redis and curl, the transferable surface of C is arithmetic, lifetime,
- * error paths and bounds, and that is close to all of it. The genuinely deep C
+ * error paths and bounds, and that is close to all of it. The deep C
  * PRs are deep in ways no general bank can reach.
  */
 export const C_ENTRIES: BankEntry[] = [

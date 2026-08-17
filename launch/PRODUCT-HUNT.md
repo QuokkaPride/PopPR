@@ -93,7 +93,7 @@ above it.
 ```
 One thing I am proud of, for anyone who has written a quiz before.
 
-Multiple choice rots when anything other than the content predicts the answer. Mine rotted three times. The first version had the correct answer as the longest option in 81% of questions, written by me, the day after I wrote the rule against doing that. Fixing it overcorrected to 48% shortest. Fixing that produced a phrase that showed up in five correct answers and zero wrong ones.
+Multiple choice rots when anything other than the content predicts the answer. Mine rotted three times. The first version had the correct answer as the longest option in 81% of questions, written by me, the day after I wrote the rule against doing that. Fixing it overcorrected to 61% shortest. Fixing that produced a phrase that showed up in five correct answers and zero wrong ones.
 
 So the build now measures what someone scores if they never read the question at all. Chance is 25%. It was 45%. It is now 24%, and CI fails if it drifts.
 ```

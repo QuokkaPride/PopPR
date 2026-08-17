@@ -3,9 +3,9 @@ import type { Difficulty } from "../core/types.js";
 /**
  * One curated concept question, written once and reused by every user.
  *
- * The options array is stored with the correct answer at a fixed index and
- * shuffled at serve time, so contributors never have to think about answer
- * position and nobody can memorise "it's always C".
+ * The options array is stored in authoring order with `correct` naming the
+ * index, and shuffled at serve time, so answer position is never a
+ * contributor's problem and nobody can memorise "it's always C".
  */
 export interface BankEntry {
   /** Must match a concept slug in core/concepts.ts, or it will never be served. */

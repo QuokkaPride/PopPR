@@ -235,10 +235,9 @@ const BATCHES: string[][] = [
 /**
  * Generate in parallel batches, invoking `onBatch` the moment each lands.
  *
- * The caller starts the game as soon as the first batch arrives and feeds later
- * batches into the live pool, so time-to-first-question is one batch rather than
- * the whole quiz. On a 45-second generation that is the difference between a
- * tool people use and a tool people close.
+ * The caller plays the curated bank from the first millisecond and feeds each
+ * batch into the live pool as it lands, so a generation measured at ~176s
+ * reaches a run already in progress instead of holding one up.
  */
 export async function generateQuizStreaming(
   ctx: PrContext,

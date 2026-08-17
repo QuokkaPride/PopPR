@@ -8,7 +8,7 @@ export interface KeyConfig {
   style: "anthropic" | "openai";
 }
 
-/** BYO key, in preference order. The fallback path — most people never hit it. */
+/** BYO key, in preference order. The fallback path, which most people never hit. */
 export function detectApiKey(preferred?: string): KeyConfig | null {
   const env = process.env;
 

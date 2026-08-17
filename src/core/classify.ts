@@ -16,7 +16,7 @@ import { bankConcepts } from "./bank.js";
  * The reason this is fast where full question generation is slow: the output is
  * a short list of slugs, not eighteen written questions. The model reads the
  * diff once and emits a few dozen tokens, so it runs in seconds rather than
- * minutes — and the questions the user then sees were still hand-written.
+ * minutes, and the questions the user then sees were still hand-written.
  */
 export async function classifyConcepts(
   ctx: PrContext,
@@ -32,12 +32,12 @@ exercises in a way that could bite in production. Judge the change on substance,
 not on whether a keyword appears:
 
 - Include a concept if the change actually depends on that behaviour being
-  understood — a Promise.all whose rejection semantics matter, a query inside a
+  understood: a Promise.all whose rejection semantics matter, a query inside a
   loop, a cache with no eviction, a nullable column in a filter.
 - EXCLUDE a concept if it only appears incidentally: in a test fixture, in a
   comment, in generated code, or in a form where the risk plainly does not
   apply. A .sort() on a freshly built local array is not an aliasing risk.
-- Prefer 3 to 6 concepts. Never pad the list to fill a quota — a short accurate
+- Prefer 3 to 6 concepts. Never pad the list to fill a quota: a short accurate
   list produces a better quiz than a long speculative one.
 
 Available concepts:
@@ -75,7 +75,7 @@ function parse(raw: string, available: string[]): DetectedConcept[] {
 
   for (const item of parsed.concepts ?? []) {
     const concept = item?.concept?.toLowerCase().trim();
-    // Silently drop hallucinated slugs — a concept with no bank entries would
+    // Drop hallucinated slugs without a word: a concept with no bank entries would
     // just produce an empty quiz section.
     if (!concept || !valid.has(concept)) continue;
     out.push({

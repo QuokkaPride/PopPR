@@ -22,8 +22,8 @@ import { UNIVERSAL_ENTRIES } from "./universal.js";
  *
  * Adding a question here benefits every user of poppr, which makes this the
  * natural place for contributions: one good PR is one more thing the whole
- * community gets quizzed on. Keep the distractor discipline (see CONTRIBUTING)
- *: `npm run audit:bank` fails the build when anything other than the content of
+ * community gets quizzed on. Keep the distractor discipline (see CONTRIBUTING):
+ * `npm run audit:bank` fails the build when anything other than the content of
  * an option predicts which one is correct, which is the main way multiple
  * choice quietly rots.
  */

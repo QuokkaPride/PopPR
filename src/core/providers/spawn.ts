@@ -99,21 +99,6 @@ async function whereLines(pattern: string): Promise<string[]> {
 const BATCH = /\.(cmd|bat)$/i;
 
 /**
- * spawn() for a resolved CLI, with the one Windows special case.
- *
- * Node refuses to execute a .cmd or .bat directly since the fix for
- * CVE-2024-27980 (Node 18.20.2+, 20.12.2+): it throws EINVAL unless the call
- * goes through a shell. npm installs every global CLI as exactly that kind of
- * shim, so routing batch files through ComSpec is what makes the AI backends
- * reachable on Windows at all. `windowsVerbatimArguments` is what satisfies the
- * guard, and it means we own the quoting.
- *
- * The POSIX branch deliberately still spawns the bare name. Passing an absolute
- * path there would bypass version-manager shims (asdf, mise, volta) that
- * re-resolve the name at exec time, and would break a `claude` that is a shell
- * function. Windows has no equivalent, so using the resolved path there is free.
- */
-/**
  * Every child we started that has not exited.
  *
  * Generation outlives the game by design: batches keep landing while you play.
@@ -135,8 +120,6 @@ export function terminateAll(): void {
   for (const child of live) {
     try {
       if (process.platform === "win32" && child.pid) {
-        // The batch shim makes the real process a grandchild of cmd.exe, so /T
-        // is what reaches it. Killing cmd.exe alone orphans the rest.
         spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
           stdio: "ignore",
           windowsHide: true,
@@ -168,6 +151,20 @@ function track(child: ChildProcessWithoutNullStreams): ChildProcessWithoutNullSt
   return child;
 }
 
+/**
+ * spawn() for a resolved CLI, with the one Windows special case.
+ *
+ * Node refuses to execute a .cmd or .bat directly since the fix for
+ * CVE-2024-27980 (Node 18.20.2+, 20.12.2+): it throws EINVAL unless the call
+ * goes through a shell. npm installs every global CLI as exactly that kind of
+ * shim, so routing batch files through ComSpec is what makes the AI backends
+ * reachable on Windows at all.
+ *
+ * The POSIX branch still spawns the bare name. An absolute path there would
+ * bypass version-manager shims (asdf, mise, volta) that re-resolve at exec
+ * time, and would break a `claude` that is a shell function. Windows has no
+ * equivalent, so the resolved path costs nothing there.
+ */
 export function spawnCli(
   bin: string,
   resolved: string | null,

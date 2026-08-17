@@ -3,7 +3,7 @@ export type Difficulty = "easy" | "medium" | "hard";
 /**
  * Question archetypes. "What does this file do?" is a chore people abandon after
  * two runs. Each archetype below is designed to be un-answerable by re-skimming
- * the diff — you have to actually understand the change.
+ * the diff: you have to understand the change.
  */
 export type Archetype =
   | "blast-radius" // who calls this, what breaks downstream

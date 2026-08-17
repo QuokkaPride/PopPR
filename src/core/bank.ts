@@ -22,7 +22,7 @@ import { ALL_ENTRIES, UNIVERSAL_ENTRIES, UNIVERSAL_CONCEPTS } from "../bank/inde
  */
 const BANK = ALL_ENTRIES;
 
-/** Fisher-Yates, seeded off the entry so a question isn't identical run to run. */
+/** Fisher-Yates on a copy. Unseeded, so option order differs on every serve. */
 function shuffled<T>(items: T[]): T[] {
   const out = [...items];
   for (let i = out.length - 1; i > 0; i--) {
@@ -34,10 +34,6 @@ function shuffled<T>(items: T[]): T[] {
 
 const LETTERS = ["A", "B", "C", "D", "E"];
 
-/**
- * Pull bank questions for the concepts this diff actually touches. Options are
- * shuffled on every serve so the answer position can't be memorised.
- */
 export interface ConceptSelection {
   concept: string;
   files: string[];
@@ -68,6 +64,10 @@ export interface TopUp {
  */
 const UNIVERSAL_FLOOR = 8;
 
+/**
+ * Pull bank questions for the concepts this diff touches. Options are shuffled
+ * on every serve so the answer position cannot be memorised.
+ */
 export function bankQuestions(
   concepts: ConceptSelection[],
   limit = 20,

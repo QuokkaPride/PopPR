@@ -13,10 +13,14 @@ export interface ConceptRule {
   concept: string;
   /** Matched against added lines only: we quiz on what you changed. */
   pattern: RegExp;
-  /** Restrict to files with these extensions. Empty means any. */
+  /** Restrict to files with these extensions. Omitted means any. */
   extensions?: string[];
 }
 
+// Every rule below was designed from real merged PRs and kept only if it fired
+// on them. The percentage above each rule is its held-out hit rate: the number
+// measured on repos the rule was NOT designed from, which runs 15 to 20 points
+// under the corpus it came from.
 export const RULES: ConceptRule[] = [
   // ── JavaScript / TypeScript ──────────────────────────────────────────────
   { concept: "promise-all", pattern: /\bPromise\.all\s*\(/, extensions: [".js", ".ts", ".jsx", ".vue", ".svelte", ".tsx", ".mjs"] },
@@ -76,8 +80,7 @@ export const RULES: ConceptRule[] = [
 
 
   // ── Rust ──────────────────────────────────────────────────────────────
-  // Designed from real merged PRs and kept only if they fired on them.
-  // 37% of substantive PRs, 95 files
+    // 37% of substantive PRs, 95 files
   { concept: "rust-panic-propagation", pattern: /\.unwrap\s*\(\s*\)|\.expect\s*\(|\bpanic!\s*\(|\btodo!|\bunreachable!\s*\(|catch_unwind/, extensions: [".rs"] },
   // 29% of substantive PRs, 94 files
   { concept: "rust-iterator-lazy", pattern: /\.(iter|iter_mut|into_iter)\s*\(\s*\)|\.(map|filter|filter_map|flat_map|take_while|skip_while|inspect|scan)\s*\(\s*\|/, extensions: [".rs"] },
@@ -99,8 +102,7 @@ export const RULES: ConceptRule[] = [
   { concept: "rust-atomic-ordering", pattern: /\bOrdering::(Relaxed|Acquire|Release|AcqRel|SeqCst)\b|\bAtomic(Bool|U8|U16|U32|U64|Usize|I8|I16|I32|I64|Isize|Ptr)\b|\bfetch_(add|sub|or|and|update)\s*\(|compare_exchange/, extensions: [".rs"] },
 
   // ── Go ────────────────────────────────────────────────────────────────
-  // Designed from real merged PRs and kept only if they fired on them.
-  // 40% of substantive PRs, 55 files
+    // 40% of substantive PRs, 55 files
   { concept: "go-error-value-pair", pattern: /(?:^|[\s(,])[\w.\[\]]+\s*,\s*err\s*:?=\s*[\w.]+\(/m, extensions: [".go"] },
   // 31% of substantive PRs, 39 files
   { concept: "go-map-zero-value", pattern: /\bmake\s*\(\s*map\[|\bvar\s+\w+\s+map\[|\bmap\[[\w.\*\[\]]+\][\w.\*\[\]{}]*\{/, extensions: [".go"] },
@@ -114,8 +116,7 @@ export const RULES: ConceptRule[] = [
   { concept: "go-map-value-copy", pattern: /,\s*(?:ok|found|exists|has)\s*:?=\s*[\w.]+\[/, extensions: [".go"] },
 
   // ── Java ──────────────────────────────────────────────────────────────
-  // Designed from real merged PRs and kept only if they fired on them.
-  // 26% of substantive PRs, 49 files
+    // 26% of substantive PRs, 49 files
   { concept: "java-collection-immutability", pattern: /\b(?:List|Set|Map)\.(?:of|copyOf)\s*\(|Collections\.(?:unmodifiable|singleton|empty)\w*\s*\(|Arrays\.asList\s*\(|\.toList\s*\(\s*\)|Collectors\.to(?:List|Set|Map)\s*\(/, extensions: [".java"] },
   // 21% of substantive PRs, 49 files
   { concept: "java-nullability-boundary", pattern: /@Nullable|\bOptional\s*<|\bOptional\.\w|\breturn\s+null\s*[;)]|Objects\.requireNonNull\s*\(|Assert\.(?:notNull|hasText)\s*\(|\.orElse\w*\s*\(|\.isPresent\s*\(\s*\)/, extensions: [".java"] },
@@ -135,8 +136,7 @@ export const RULES: ConceptRule[] = [
   { concept: "java-executor-concurrency", pattern: /\bExecutorService\b|\bExecutor\s+\w+|\bExecutors\.new\w+|\bThreadPool\w*\b|\bCompletableFuture\b|\.submit\s*\(|\bForkJoinPool\b|\bthreadPool\s*\(\s*\)/, extensions: [".java"] },
 
   // ── Ruby ──────────────────────────────────────────────────────────────
-  // Designed from real merged PRs and kept only if they fired on them.
-  // 28% of substantive PRs, 56 files
+    // 28% of substantive PRs, 56 files
   { concept: "ruby-blank-vs-nil", pattern: /\.(blank\?|present\?|presence|empty\?)/, extensions: [".rb",".rake",".gemspec"] },
   // 24% of substantive PRs, 56 files
   { concept: "ruby-frozen-shallow", pattern: /\.freeze\b|\.frozen\?|\bFrozenError\b|\bdeep_dup\b|\bmake_shareable\b/, extensions: [".rb",".rake",".gemspec"] },
@@ -154,8 +154,7 @@ export const RULES: ConceptRule[] = [
   { concept: "ruby-relation-laziness", pattern: /\.(where|joins|includes|preload|eager_load|left_joins|left_outer_joins|order|limit|offset|group|having|distinct|unscope|references|pluck|find_each|find_in_batches|in_batches)\s*\(|\.exists\?|\.loaded\?/, extensions: [".rb",".rake",".gemspec"] },
 
   // ── C ─────────────────────────────────────────────────────────────────
-  // Designed from real merged PRs and kept only if they fired on them.
-  // 21% of substantive PRs, 33 files
+    // 21% of substantive PRs, 33 files
   { concept: "c-int-truncation", pattern: /\(\s*(unsigned\s+|signed\s+)?(u?int(8|16|32|64)_t|char|short|int|long|long\s+long|size_t|ssize_t|off_t|curl_off_t|time_t)\s*\)\s*[\w(\-&]/, extensions: [".c",".h",".cc",".cpp",".hpp",".cxx",".hh"] },
   // 12% of substantive PRs, 12 files
   { concept: "c-iteration-invalidation", pattern: /\b\w*[Ii]ter(ator)?\w*\s*\(|\b\w+[Nn]ext\s*\(|while\s*\(\s*\(?\s*\w+\s*=\s*[\w>.\-]*[Nn]ext/, extensions: [".c",".h",".cc",".cpp",".hpp",".cxx",".hh"] },
@@ -170,8 +169,7 @@ export const RULES: ConceptRule[] = [
   { concept: "c-buffer-bounds", pattern: /\b(memcpy|memmove|memset|strcpy|strncpy|strcat|strncat|sprintf|snprintf|strlcpy|strlcat)\s*\(/, extensions: [".c",".h",".cc",".cpp",".hpp",".cxx",".hh"] },
 
   // ── Python ────────────────────────────────────────────────────────────
-  // Designed from real merged PRs and kept only if they fired on them.
-  // 31% of substantive PRs, 88 files
+    // 31% of substantive PRs, 88 files
   { concept: "python-isinstance-dispatch", pattern: /\bisinstance\s*\(|\bissubclass\s*\(|\btype\s*\(\s*[\w.]+\s*\)|\bhasattr\s*\(|\bgetattr\s*\(/, extensions: [".py"] },
   // 31% of substantive PRs, 147 files
   { concept: "python-falsy-default", pattern: /\.(get|pop|setdefault)\s*\(|\bdefaultdict\s*\(|\bor\s+(\[\]|\{\}|\(\)|""|''|0\b|None\b|set\(\)|dict\(\)|list\(\))|^\s*(el)?if\s+(not\s+)?[\w.]+\s*:\s*$|:=/m, extensions: [".py"] },
@@ -187,8 +185,7 @@ export const RULES: ConceptRule[] = [
   { concept: "python-init-order", pattern: /\bsuper\(\s*\)\s*\.\s*__init__|^\s{4,}self\.\w+\s*\(\s*\)\s*$/m, extensions: [".py"] },
 
   // ── TypeScript, from real vscode and next.js PRs ──────────────────────
-  // Designed from real merged PRs and kept only if they fired on them.
-  // 21% of substantive PRs, 54 files
+    // 21% of substantive PRs, 54 files
   { concept: "array-every-vacuous", pattern: /\.(every|some)\s*\(/, extensions: [".ts",".tsx",".js",".jsx", ".vue", ".svelte",".mjs"] },
   // 19% of substantive PRs, 69 files
   { concept: "union-exhaustiveness", pattern: /^\s*case\s+['"\w.]|\bswitch\s*\(|^\s*(export\s+)?type\s+[A-Z]\w*\s*=\s*[^;=]*\||^\s*\|\s*['"][\w-]+['"]/m, extensions: [".ts",".tsx"] },
@@ -332,11 +329,6 @@ function toggleTripleQuotes(
   // directly under a block header, so require one before believing a lone fence
   // opened anything.
   if (!inString) {
-    // A docstring either sits under a block header, or carries content on the
-    // same line as its fence. A fence alone on its line with neither is a
-    // CLOSING fence whose opener is outside the hunk, and believing otherwise
-    // suppresses everything after it. This is most often true at the very start
-    // of a hunk, where there is no preceding line at all.
     // Only a fence directly under a block header opens a DOCSTRING. Everything
     // else assigned to a triple-quoted string is usually code someone wrote on
     // purpose: embedded SQL, a template, a shader. Suppressing those loses real
@@ -416,14 +408,6 @@ export interface DetectedConcept {
 }
 
 /**
- * Which concepts does this diff actually exercise? Runs in single-digit
- * milliseconds, which is the whole point.
- *
- * Each hit also records the line that caused it. Detection knows exactly which
- * line matched, and throwing that away was why a bank question could look like
- * trivia bolted onto a PR rather than a question about the PR.
- */
-/**
  * Added lines that are code: not prose, not a comment, not inside a docstring.
  *
  * Comment lines keep their real line numbers and are dropped from what the
@@ -476,6 +460,14 @@ export function codeFiles(ctx: PrContext): string[] {
   return out;
 }
 
+/**
+ * Which concepts does this diff exercise? Runs in single-digit milliseconds,
+ * which is the whole point.
+ *
+ * Each hit also records the line that caused it. Detection knows which line
+ * matched, and throwing that away was why a bank question could look like
+ * trivia bolted onto a PR rather than a question about the PR.
+ */
 export function detectConcepts(ctx: PrContext): DetectedConcept[] {
   const files = new Map<string, Set<string>>();
   const evidence = new Map<string, Evidence[]>();

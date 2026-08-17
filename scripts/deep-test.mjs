@@ -6,8 +6,8 @@ import { readDiff } from "../dist/core/diff.js";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 
-// Was hardcoded to one machine's home directory, so the harness CONTRIBUTING
-// points at could only ever run for its author. Resolve from this file instead.
+// Was hardcoded to one machine's home directory, so this could only ever run
+// for its author. Resolve from this file instead.
 const REPO = dirname(dirname(fileURLToPath(import.meta.url)));
 
 const t0 = Date.now();

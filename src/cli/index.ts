@@ -238,8 +238,8 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
     let generationFailed = false;
 
     if (wantsAi) {
-      // Deep mode: questions about YOUR code. Needs a model, and the model has
-      // to actually reason about the diff, so it is the slow path.
+      // The AI path: questions about YOUR code. Generation is slow and the
+      // backend is optional, so neither is allowed to hold up the start.
       //
       // Seed from the curated bank FIRST, which costs a few milliseconds and no
       // network. Waiting for the model before showing anything was deep mode's
@@ -258,9 +258,8 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
       } catch (err) {
         // Having no backend is the ordinary case now that the AI path is the
         // default, so it can be neither fatal nor loud. Only a run that asked
-        // for it by name fails on it, and only when the bank could not seed a
-        // game either: everyone else silently plays the curated run, which is
-        // the same run they would have got before this became the default.
+        // for it by name fails on it, and only when the bank could not seed
+        // a game either.
         if (aiDemanded && seed.length === 0) throw err;
         spin.stop();
         backendMissing = true;
@@ -325,9 +324,7 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
       spin.stop();
 
       if (staircase.remaining === 0) {
-        // Only advertise a backend to someone who asked for one. A keyless user
-        // on a docs-only diff getting told to install Claude Code is exactly the
-        // nag the default path exists to avoid.
+        // Only advertise a backend to someone who asked for one: see aiDemanded.
         console.log(
           pc.yellow(`\n  No bank concepts matched ${ctx.label}.\n`) +
             (backendMissing && aiDemanded
@@ -338,14 +335,14 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
         return;
       }
     } else {
-      // Quick mode: pure pattern matching against a curated bank. No model, no
-      // network, no key: a few milliseconds. This is the default because a
-      // tool you have to configure before the first play is a tool nobody plays.
+      // Pure pattern matching against a curated bank. No model, no network, no
+      // key: a few milliseconds. Reached by `--quick`, `--certify` and a bare
+      // `--smart`. The default path is above, and tries for AI first.
       let detected = detectConcepts(ctx);
 
       if (opts.smart) {
         // Smart mode: same curated questions, but a model decides which
-        // concepts genuinely matter here instead of a regex guessing from
+        // concepts matter here instead of a regex guessing from
         // keywords. One small call, because the output is a list of slugs.
         spin.update("Working out what matters in this diff");
         const { provider } = await detectProvider(opts.provider);
@@ -385,7 +382,7 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
     }
 
     const seconds = Number(opts.time) || 180;
-    // The label names what this run actually is, not what was asked for. A
+    // The label names what this run is, not what was asked for. A
     // keyless machine on the default path plays a curated run and the banner has
     // to say "quick", or the first thing PopPR tells that user is untrue.
     const mode = !wantsAi || backendMissing ? "quick" : "deep";
@@ -489,10 +486,8 @@ async function certify(
   cwd: string,
 ): Promise<void> {
   const loop = new MasteryLoop(pool, result.answered);
-  // The loop paints its full frames on the alternate screen, so it never lands
-  // on top of the review screen and there is nothing to clear away afterwards:
-  // the comment prints below the review, where it can be read next to the score
-  // that earned it.
+  // The loop paints on the alternate screen (see screen.ts), so the comment
+  // prints below the review, next to the score that earned it.
   const finished = await runMasteryLoop(loop);
 
   if (!finished) {

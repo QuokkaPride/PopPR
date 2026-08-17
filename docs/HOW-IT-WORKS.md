@@ -56,7 +56,7 @@ This bank has rotted three times, each in a different disguise:
 | form | measured | how it got in |
 |---|---|---|
 | correct answer is longest | **81%** | Written by someone who had just finished writing the rule against doing it. |
-| correct answer is shortest | **48%** | Fixing the first one. "Write the distractors first and match the correct answer to them" pushes it terse, and nobody measured the other direction. |
+| correct answer is shortest | **61%** | Fixing the first one. "Write the distractors first and match the correct answer to them" pushes it terse, and nobody measured the other direction. |
 | a signature phrase | 5 of 21 correct, **0 of 63** distractors | Fixing the second one. Lengthening correct answers made the author reach for the same construction every time. |
 
 So `npm test` gates on the general question rather than three specific bans:

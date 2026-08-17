@@ -52,4 +52,4 @@ if (offenders.length) {
   process.exit(1);
 }
 
-console.log(`web/vendor ready (${offenders.length} node imports)`);
+console.log("web/vendor ready, no node builtins");

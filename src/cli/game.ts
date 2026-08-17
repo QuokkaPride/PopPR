@@ -13,7 +13,7 @@ interface GameOptions {
   prLabel: string;
   repo: string;
   streak: number;
-  /** True while more question batches are still being generated. */
+  /** Omitted off the AI path, where the pool cannot grow mid-run. */
   moreComing?: () => boolean;
 }
 
@@ -255,8 +255,8 @@ interface AskContext {
 
 /**
  * Renders one question and waits for a single keypress. Redraws four times a
- * second so the clock and the draining point value are visibly moving — the
- * moving number is what creates urgency; telling people to hurry does not.
+ * second so the clock and the draining point value keep moving: the moving
+ * number is what creates urgency, and telling people to hurry does not.
  */
 function askOne(
   question: Question,
@@ -350,13 +350,9 @@ function askOne(
 }
 
 /**
- * 400ms of pure signal — no text to read. Explanations are deliberately held
- * until the review screen: making someone read a paragraph while their clock is
- * running is the fastest way to kill the flow state we just built.
- */
-/**
  * A hit is 350ms of pure signal with nothing to read, which is what keeps the
- * run moving.
+ * run moving. The explanation is held back to the review screen: making someone
+ * read a paragraph while their clock runs kills the flow state the timer built.
  *
  * A miss is the one moment with something worth reading, and it used to print
  * the bare letter of the right answer for half a second, which is unreadable

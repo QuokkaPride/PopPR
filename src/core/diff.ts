@@ -280,7 +280,7 @@ async function readFromGh(pr: string, cwd: string, maxChars: number): Promise<Pr
 
 /**
  * Merge the three git views into DiffFile[], drop generated noise, and budget
- * the character cap across files — biggest change first, since that's where the
+ * the character cap across files, biggest change first, since that is where the
  * interesting questions live.
  */
 function assembleFiles(

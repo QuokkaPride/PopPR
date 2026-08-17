@@ -67,7 +67,7 @@ export async function retryMissed(misses: Answered[]): Promise<number> {
 /**
  * Certification's untimed tail: ask what is not yet right, until nothing is.
  *
- * Returns true only when the loop is genuinely finished, because the caller
+ * Returns true only when the loop is finished, because the caller
  * turns that boolean into a public claim. Ctrl-c returns false with the question
  * unrecorded, so quitting halfway certifies nothing and costs nothing either.
  *

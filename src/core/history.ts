@@ -21,7 +21,7 @@ function historyPath(): string {
 interface ConceptStat {
   seen: number;
   correct: number;
-  /** ISO date of the last time this concept was asked. */
+  /** ISO timestamp of the last time this concept was asked. */
   lastSeen: string;
 }
 
@@ -132,7 +132,7 @@ export interface ConceptTrend {
 }
 
 /**
- * Improvement over time, per concept. This is the retention hook — "your
+ * Improvement over time, per concept. This is the retention hook: "your
  * async/concurrency went 40% -> 78%" is the thing people screenshot.
  */
 export function conceptTrends(h: History, recentRuns = 5): ConceptTrend[] {

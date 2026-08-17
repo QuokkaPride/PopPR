@@ -7,7 +7,7 @@
  * are using it, and the quiz keeps looking fine while it stops measuring
  * anything. Good intentions do not prevent this, so it is a gate.
  *
- * It has been found three times here, and each gate below was written the day
+ * It has been found four times here, and each gate below was written the day
  * after being burned:
  *
  *   1. LENGTH, long. The first hand-written bank had the correct answer as the
@@ -22,7 +22,7 @@
  *      predictor.
  *
  * The shape check below is deliberately general rather than a ban on those
- * three words, because the next form will be a fourth thing nobody has thought
+ * three words, because the next form will be a fifth thing nobody has thought
  * of yet. It asks the only question that matters: does any construction appear
  * in correct answers at a rate that gives the answer away?
  */
@@ -176,10 +176,8 @@ if (audit.longestIsCorrect > LIMITS.longestIsCorrect) {
     `Correct answer is the longest option in ${(audit.longestIsCorrect * 100).toFixed(0)}% of questions (limit ${LIMITS.longestIsCorrect * 100}%).`,
   );
 }
-// The mirror of the check above, added after measuring: the bank sat at 61%
-// shortest while reporting 3% longest, because writing distractors first and
-// matching the correct answer to them pushes the correct answer terse. One
-// sided measurement is what let that happen.
+// A floor as well as a ceiling: never being the longest is as free an
+// elimination as always being it. See the ledger in the header.
 if (audit.longestIsCorrect < LIMITS.longestIsCorrectMin) {
   failures.push(
     `Correct answer is never the longest option (${(audit.longestIsCorrect * 100).toFixed(0)}%, floor ${LIMITS.longestIsCorrectMin * 100}%), so dropping the longest is a free elimination.`,

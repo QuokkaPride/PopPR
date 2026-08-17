@@ -5,7 +5,7 @@
  * selection, the difficulty staircase, scoring and the scorecard are all
  * imported unchanged from the same modules the CLI uses, because `src/core/`
  * was kept free of terminal concerns. What is written here is only the parts
- * that genuinely differ: fetching a diff over HTTP instead of shelling out to
+ * that differ: fetching a diff over HTTP instead of shelling out to
  * git, and drawing to the DOM instead of to a terminal.
  *
  * Public repos only, and that is a positioning choice rather than a limitation.
@@ -176,7 +176,15 @@ function recordRun(result) {
   return h;
 }
 
-/** Consecutive days with at least one run, today included. */
+/**
+ * Core's `currentStreak`, over localStorage.
+ *
+ * Keyed on UTC days rather than local ones, unlike core/history.ts, which moved
+ * to local components because a late-evening run is already tomorrow in UTC and
+ * players far east or west lost days they had played. This copy still has that
+ * bug: it cannot import the fixed version because history.ts touches node:fs
+ * and build-web.mjs skips it.
+ */
 function currentStreak(history) {
   const days = new Set(history.runs.map((r) => r.at.slice(0, 10)));
   let streak = 0;
@@ -428,7 +436,6 @@ function answer(key) {
   $("flash-mark").className = correct ? "hit" : "miss";
 
   if (correct) {
-    // Nothing to read, so a beat is enough and the clock keeps running.
     $("flash-sub").textContent = `+${event.points}`;
     $("flash-cont").hidden = true;
     show("flash");
@@ -737,10 +744,8 @@ function showCertified() {
 
 document.addEventListener("keydown", (e) => {
   if (e.repeat) return; // holding a key must not answer question after question
-  // Ctrl+A, Ctrl+D and Ctrl+F are select-all, bookmark and find. Without this
-  // the browser did its thing AND the run answered that letter, so reaching for
-  // find during a question silently burned it. The CLI has always had this
-  // guard; the web front end was written from the same shape and missed it.
+  // Ctrl+F and friends: without this the browser opened find AND the run
+  // answered F, burning the question. Any modifier means the key was not ours.
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   const key = e.key.toUpperCase();
   if (!["A", "B", "C", "D", "E", "F"].includes(key)) return;
@@ -803,10 +808,8 @@ async function copyInto(button, text, label) {
 
 $("certify-copy").addEventListener("click", async () => {
   await copyInto($("certify-copy"), $("certify-comment").textContent, "Copy comment");
-  // The link only appears once there is something on the clipboard to paste.
-  // Showing both at once makes the reader choose; showing them in order makes
-  // the next step obvious, and pasting is the step that actually opens the
-  // check. It stays visible after the label resets, since the copy is done.
+  // Revealed after the copy attempt, not beside it: two calls to action at once
+  // make the reader choose, and pasting is the step that opens the check.
   const open = $("certify-pr");
   if (open.href && open.href !== "#") open.hidden = false;
 });

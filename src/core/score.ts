@@ -9,7 +9,7 @@ const BASE: Record<Difficulty, number> = {
 /**
  * Speed multiplier. Answering instantly is worth 1.6x, decaying to 1.0x at 30s.
  * The decay is visible on screen as a ticking number, which is what actually
- * makes people move — being *told* to go fast does nothing, watching points
+ * makes people move: being told to go fast does nothing, watching points
  * drain does.
  */
 export function speedMultiplier(ms: number): number {
@@ -37,7 +37,7 @@ export interface ScoreEvent {
  * Pure speed optimisation would push people toward easy questions and
  * recognition-level thinking, which defeats the point. Weighting hard questions
  * 3.5x means the winning strategy is not "answer fast", it is "answer hard
- * things fast" — which is exactly the skill we want to reward.
+ * things fast", which is the skill worth rewarding.
  */
 export function scoreAnswer(
   difficulty: Difficulty,

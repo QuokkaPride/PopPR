@@ -6,7 +6,7 @@ const ORDER: Difficulty[] = ["easy", "medium", "hard"];
  * A staircase: two correct in a row steps up, one wrong steps down.
  *
  * This is deliberately not a "get everything right" design. Learning is fastest
- * at roughly 85% accuracy — hard enough to strain, not so hard you disengage
+ * at roughly 85% accuracy: hard enough to strain, not so hard you disengage
  * (Wilson et al., 2019). A 2-up/1-down staircase converges near that band on its
  * own, so the quiz keeps finding the edge of what you know without any tuning.
  */
@@ -18,8 +18,8 @@ export class Staircase {
   constructor(private pool: Question[] = []) {}
 
   /**
-   * Questions can arrive after the game has started — generation runs in
-   * parallel batches and we begin play as soon as the first one lands.
+   * Questions can arrive after the game has started: the run is seeded from the
+   * bank and generated batches join the pool as each one lands.
    */
   add(questions: Question[]): void {
     for (const q of questions) {

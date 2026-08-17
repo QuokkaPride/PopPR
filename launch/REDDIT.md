@@ -66,7 +66,7 @@ Multiple choice has a known failure mode: whoever writes the questions makes the
 
 Then I measured. The correct answer was the longest option in 81% of my questions.
 
-I fixed it and measured again, this time in the other direction, which I had not thought to do the first time. Correct-is-shortest: 48%. "Pick the shortest option" had become the winning strategy while the number I was reporting said a healthy 3%. Writing the distractors first and matching the correct answer to them, which is the standard advice, pushes the correct answer terse.
+I fixed it and measured again, this time in the other direction, which I had not thought to do the first time. Correct-is-shortest: 61%. "Pick the shortest option" had become the winning strategy while the number I was reporting said a healthy 3%. Writing the distractors first and matching the correct answer to them, which is the standard advice, pushes the correct answer terse.
 
 I fixed that too, and produced a third leak. Lengthening correct answers made whoever wrote them reach for the same contrastive construction, so one phrase ended up in five correct answers and zero of sixty-three distractors. A perfect predictor, in a bank that passed both length checks.
 

@@ -156,7 +156,7 @@ Worth having ready. It is the part of this I would defend longest, and it does
 not fit in the post.
 
 ```
-I caught my own question bank cheating three times. The first version had the correct answer as the longest option in 81% of questions, written by me, the day after I wrote the rule against doing that. Fixing it overcorrected until the correct answer was the shortest 48% of the time. Fixing that produced a phrase that showed up in five correct answers and zero wrong ones.
+I caught my own question bank cheating three times. The first version had the correct answer as the longest option in 81% of questions, written by me, the day after I wrote the rule against doing that. Fixing it overcorrected until the correct answer was the shortest 61% of the time. Fixing that produced a phrase that showed up in five correct answers and zero wrong ones.
 
 So the build now measures what someone scores if they never read the question at all. Chance is 25%. It was 45%. It is now 24%.
 ```
