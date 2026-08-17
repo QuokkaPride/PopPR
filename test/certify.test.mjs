@@ -255,5 +255,5 @@ test("no filename from the diff is rendered into the comment", () => {
     { owner: "o", repo: "r", number: 1 },
   );
   assert.ok(!body.includes("src/a.ts"), "the comment should name concepts, not files");
-  assert.ok(body.includes("1 question on this diff"), "it still says how many questions");
+  assert.ok(body.includes("1 question, from 1 concept"), "it still says how many questions");
 });
