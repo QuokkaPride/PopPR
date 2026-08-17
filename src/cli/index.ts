@@ -2,10 +2,11 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { Command, Option } from "commander";
-import pc from "picocolors";
+import pc from "./colors.js";
 import { readDiff, findCallSites } from "../core/diff.js";
 import { findRecentPr, repoName, hasGh } from "../core/pr.js";
 import { detectProvider } from "../core/providers/index.js";
+import { terminateAll } from "../core/providers/spawn.js";
 import { generateQuizStreaming } from "../core/quiz.js";
 import {
   loadHistory,
@@ -49,10 +50,14 @@ program
   // working flag and dropped from help, because two AI modes nobody could tell
   // apart was the problem.
   .addOption(new Option("-s, --smart", "deprecated: use --deep").hideHelp())
+  // On by default. Kept as an explicit flag because it also means "I expect the
+  // AI questions", which is what turns a missing backend from silence into a
+  // message worth printing.
   .option(
     "-d, --deep",
-    "add questions an AI writes about your specific code (starts instantly, they stream in)",
+    "require the AI questions, and say so if no backend is available (default: use them when one is)",
   )
+  .option("--quick", "curated bank only: no AI, no network, no key")
   .option("-t, --time <seconds>", "how long the run lasts", "180")
   .option(
     "--certify",
@@ -66,6 +71,11 @@ program
     "print the concepts this diff touches and exit, without playing",
   )
   .option("--json", "machine-readable output, for --detect")
+  // Read directly from argv in colors.ts, which runs before commander parses.
+  // Declared here so passing one is not an unknown-option error: a colour flag
+  // that exits 1 is worse than no colour flag at all.
+  .addOption(new Option("--no-color", "disable colour output").hideHelp())
+  .addOption(new Option("--color", "force colour output").hideHelp())
   .action(main);
 
 program
@@ -95,9 +105,43 @@ program
   .description("handle one GitHub Actions event")
   .action(() => runGhEvent());
 
+/**
+ * The second line of the no-terminal message.
+ *
+ * Git Bash and MSYS2 run under MinTTY, which is not a Windows console: Node
+ * reports isTTY false there even though a person is sitting at it. Telling that
+ * user they are not at a terminal is both wrong and useless, and Git Bash is a
+ * mainstream way to use a Windows machine. `winpty` is the actual fix, so say
+ * that instead.
+ */
+function minTtyHint(): string {
+  const mintty =
+    process.platform === "win32" &&
+    (Boolean(process.env.MSYSTEM) || /^xterm/.test(process.env.TERM ?? ""));
+
+  if (mintty) {
+    return pc.dim(
+      "  Git Bash hides the console from Node. Try `winpty poppr ...`,\n" +
+        "  or run it from Windows Terminal or PowerShell.\n",
+    );
+  }
+  return pc.dim(
+    "  `poppr --detect` prints the concepts, and `--detect --json` is machine-readable.\n",
+  );
+}
+
 async function main(prArg: string | undefined, opts: Record<string, any>) {
   if (opts.stats) return showStats();
   if (opts.detect) return detectOnly(prArg, opts);
+
+  // The game is a raw-mode, full-screen program. With stdin piped there is no
+  // way to answer, and the 4fps repaint just scrolls thousands of frames past
+  // whoever is watching: a CI job or a `poppr --local | tee run.log` used to sit
+  // there for the full three minutes producing nothing anyone could use.
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    console.error(pc.yellow("\n  PopPR needs an interactive terminal to play.\n") + minTtyHint());
+    process.exit(1);
+  }
 
   if (opts.certify && opts.local) {
     console.error(
@@ -115,6 +159,32 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
     );
     process.exit(1);
   }
+
+  /**
+   * Whether to try for AI-written questions, and whether to say anything when
+   * there are none.
+   *
+   * The AI path is the default now. It can be, because it does not block: the
+   * curated bank seeds the run in milliseconds and the written-for-you questions
+   * join the live pool as they land. So a machine with no backend and no key
+   * plays exactly the run it plays today, at exactly the same speed, and nothing
+   * on screen mentions a model. That is what keeps the adoption rule in
+   * HANDOFF.md decision 3 intact: first play still needs no key, no install and
+   * no config.
+   *
+   * `--deep` now means "I want the AI questions and I want to be told if I am
+   * not getting them". Without it, a missing backend is silent, because nagging
+   * every keyless user on every run is how a tool teaches people to ignore it.
+   * `--quick` opts out of the attempt entirely.
+   *
+   * Certification is bank-only by design (the mastery loop needs a fixed pool),
+   * so it never takes this path.
+   */
+  const wantsAi = !opts.quick && !opts.certify && (opts.deep || !opts.smart);
+  // Naming a provider is asking for it just as plainly as --deep is. Silently
+  // playing the bank after someone typed `--provider ollama` looks like the flag
+  // was ignored, which it effectively was.
+  const aiDemanded = Boolean(opts.deep || opts.provider);
 
   const cwd = process.cwd();
   const spin = startSpinner("Finding your PR");
@@ -148,7 +218,11 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
     spin.update("Reading the diff");
     const ctx = await readDiff({ cwd, pr: opts.local ? undefined : pr, base: opts.base });
     ctx.repo = await repoName(cwd);
-    ctx.callSites = await findCallSites(ctx, cwd);
+    // Only the AI prompt reads callSites, and finding them costs up to 25 `git
+    // grep` subprocesses. A bank-only run paid that for nothing, which was
+    // survivable when the AI path was opt-in and is not now that it is the
+    // default: this has to stay off the road for anyone without a backend.
+    if (wantsAi) ctx.callSites = await findCallSites(ctx, cwd);
 
     const history = await loadHistory();
     const staircase = new Staircase();
@@ -158,10 +232,12 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
     // staircase because the staircase serves what the clock reaches, and the
     // claim covers every question whether the clock reached it or not.
     let certifyPool: Question[] = [];
-    /** Deep generation failed but the bank had already seeded a playable run. */
-    let deepFailed = false;
+    /** No AI backend on this machine. Ordinary, and only worth saying if asked. */
+    let backendMissing = false;
+    /** A backend was found and generation still failed. Always worth saying. */
+    let generationFailed = false;
 
-    if (opts.deep) {
+    if (wantsAi) {
       // Deep mode: questions about YOUR code. Needs a model, and the model has
       // to actually reason about the diff, so it is the slow path.
       //
@@ -180,12 +256,14 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
       try {
         backend = await detectProvider(opts.provider);
       } catch (err) {
-        // No backend installed is the commonest deep-mode failure by far, and it
-        // used to end the run. With a seeded pool there is still a game to play,
-        // so report it once at the end rather than exiting here.
-        if (seed.length === 0) throw err;
+        // Having no backend is the ordinary case now that the AI path is the
+        // default, so it can be neither fatal nor loud. Only a run that asked
+        // for it by name fails on it, and only when the bank could not seed a
+        // game either: everyone else silently plays the curated run, which is
+        // the same run they would have got before this became the default.
+        if (aiDemanded && seed.length === 0) throw err;
         spin.stop();
-        deepFailed = true;
+        backendMissing = true;
         backend = null;
       }
       const review = conceptsDueForReview(history);
@@ -226,21 +304,39 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
         },
       }).catch((err) => {
         firstBatch?.();
-        // A backend that is missing or broken is not a reason to refuse to
-        // play, now that there is always something in the pool. Swallow it
-        // when the bank seeded the run and report it on the review screen.
+        // A broken backend is not a reason to refuse to play, now that there is
+        // always something in the pool. Swallow it when the bank seeded the run
+        // and report it on the review screen. Unlike a missing backend this is
+        // always worth saying: the user has one installed and it did not work.
         if (seed.length === 0) throw err;
-        deepFailed = true;
+        generationFailed = true;
       });
       }
 
       // Only block when the bank had nothing to offer, which is a diff with no
-      // code in it or none the rules could read.
-      if (seed.length === 0) {
+      // code in it or none the rules could read. `ready` is resolved by the
+      // generation callbacks, so with no backend there is nobody to resolve it:
+      // waiting there is a hang, not a slow run. Unreachable until the AI path
+      // became the default, because a missing backend used to throw first.
+      if (seed.length === 0 && backend) {
         await ready;
         if (staircase.remaining === 0) await generation;
       }
       spin.stop();
+
+      if (staircase.remaining === 0) {
+        // Only advertise a backend to someone who asked for one. A keyless user
+        // on a docs-only diff getting told to install Claude Code is exactly the
+        // nag the default path exists to avoid.
+        console.log(
+          pc.yellow(`\n  No bank concepts matched ${ctx.label}.\n`) +
+            (backendMissing && aiDemanded
+              ? pc.dim("  An AI backend would write questions about it: `npm i -g @anthropic-ai/claude-code`,\n") +
+                pc.dim("  or set ANTHROPIC_API_KEY.\n")
+              : ""),
+        );
+        return;
+      }
     } else {
       // Quick mode: pure pattern matching against a curated bank. No model, no
       // network, no key: a few milliseconds. This is the default because a
@@ -282,14 +378,18 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
         console.log(
           pc.yellow(
             `\n  Only ${staircase.remaining} concept${staircase.remaining === 1 ? "" : "s"} in the bank matched this diff.\n`,
-          ) + pc.dim("  Try `poppr --deep` for questions written about your actual code.\n"),
+          ) + pc.dim("  Drop `--quick` and an AI backend will write questions about your actual code.\n"),
         );
         if (staircase.remaining === 0) return;
       }
     }
 
     const seconds = Number(opts.time) || 180;
-    await countdown(ctx.label, seconds, opts.deep ? "deep" : opts.smart ? "smart" : "quick");
+    // The label names what this run actually is, not what was asked for. A
+    // keyless machine on the default path plays a curated run and the banner has
+    // to say "quick", or the first thing PopPR tells that user is untrue.
+    const mode = !wantsAi || backendMissing ? "quick" : "deep";
+    await countdown(ctx.label, seconds, opts.smart && !wantsAi ? "smart" : mode);
 
     const result = await runGame(staircase, {
       durationMs: seconds * 1000,
@@ -299,6 +399,12 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
       moreComing: () => pending > 0,
     });
 
+    // The clock has stopped, so a batch that lands now is worth nothing. Kill
+    // the children rather than only swallowing their rejection: a ChildProcess
+    // refs the event loop, and once the AI path became the default this was the
+    // difference between the prompt coming back and the shell sitting there for
+    // the two to four minutes generation takes.
+    terminateAll();
     void generation.catch(() => {});
 
     if (result.answered.length === 0) {
@@ -318,15 +424,26 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
 
     console.log(renderReview(result, updated.runs.length, conceptTrends(updated)));
 
-    // Deep mode now seeds from the bank and plays immediately, so a backend that
-    // is missing or slow costs you the written-for-you questions and not the run.
-    // Say which one you got, because the two are not the same product.
-    if (deepFailed) {
+    if (updated.saved === false) {
+      console.log(
+        pc.dim(`  Could not write ${process.env.POPPR_HOME ?? "~/.poppr"}, so this run was not recorded.\n`),
+      );
+    }
+
+    // A backend that is missing or slow costs you the written-for-you questions
+    // and not the run. Say which one you got, because the two are not the same
+    // product, but say it only to someone who was expecting the other one.
+    if (generationFailed) {
+      console.log(
+        pc.yellow("  Those were curated bank questions: the AI backend failed partway.\n") +
+          pc.dim("  Run it again, or `--quick` to skip the attempt entirely.\n"),
+      );
+    } else if (backendMissing && aiDemanded) {
       console.log(
         pc.yellow("  Those were curated bank questions.\n") +
           pc.dim("  Deep mode needs an AI backend: `npm i -g @anthropic-ai/claude-code`, or set ANTHROPIC_API_KEY.\n"),
       );
-    } else if (opts.deep && pending > 0) {
+    } else if (wantsAi && pending > 0) {
       console.log(
         pc.dim("  The clock beat the model: some questions written for this PR arrived too late.\n") +
           pc.dim("  Run it again and they will be waiting, or give it longer with `-t 300`.\n"),

@@ -22,7 +22,7 @@ Everything else is elaboration. If a channel gives you one sentence, use that on
 1. `npm test` green
 2. `npm publish` 0.3.0, and confirm the npm page renders the new README
 3. Tag `v1` so `QuokkaPride/PopPR@v1` resolves for the Action
-4. Screenshot the PR comment and the green `poppr/certified` check
+4. Screenshot the PR comment and the green `poppr/quiz-passed` check
 5. Open https://quokkapride.github.io/PopPR/ and play one round, to be sure the
    hosted version is on the new bank
 

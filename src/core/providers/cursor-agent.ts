@@ -1,15 +1,16 @@
-import { spawn } from "node:child_process";
 import type { Provider } from "../types.js";
+import { spawnCli } from "./spawn.js";
 
 /** Same trick as the Claude Code provider, for people living in Cursor. */
-export function cursorAgentProvider(bin = "cursor-agent"): Provider {
+export function cursorAgentProvider(
+  bin = "cursor-agent",
+  resolved: string | null = null,
+): Provider {
   return {
     name: "cursor-agent",
     generate(prompt: string): Promise<string> {
       return new Promise((resolve, reject) => {
-        const child = spawn(bin, ["--print", "--output-format", "text"], {
-          stdio: ["pipe", "pipe", "pipe"],
-        });
+        const child = spawnCli(bin, resolved, ["--print", "--output-format", "text"]);
 
         let stdout = "";
         let stderr = "";

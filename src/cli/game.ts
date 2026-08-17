@@ -1,5 +1,5 @@
 import readline from "node:readline";
-import pc from "picocolors";
+import pc from "./colors.js";
 import { Staircase } from "../core/adaptive.js";
 import { liveValue, scoreAnswer } from "../core/score.js";
 import type { Answered, Question, RunResult } from "../core/types.js";
@@ -25,7 +25,20 @@ function bar(fraction: number, width = 24): string {
   return pc.red(body);
 }
 
-function wrap(text: string, width = 68, indent = "  "): string[] {
+/**
+ * Usable text width for this terminal.
+ *
+ * A Windows console is 80 columns by default and option text regularly runs
+ * past that, wrapping mid-word into column 0 and destroying the A/B/C/D
+ * alignment the screen is read by. Clamped at both ends: a very wide terminal
+ * should not produce lines the eye cannot track back to the next row, and a
+ * narrow one should not collapse into a one-word column.
+ */
+function screenWidth(): number {
+  return Math.max(40, Math.min((process.stdout.columns || 80) - 6, 76));
+}
+
+function wrap(text: string, width = screenWidth(), indent = "  "): string[] {
   const words = text.split(/\s+/);
   const out: string[] = [];
   let line = "";
@@ -54,7 +67,11 @@ function whyLine(question: Question): string[] {
   if (!first) return [];
 
   const where = first.line ? `${first.file}:${first.line}` : first.file;
-  const room = 74 - where.length;
+  const room = screenWidth() - where.length - 6;
+  // A long path on a narrow terminal leaves no room for the code. Negative room
+  // inverted the truncation and printed an over-long line instead of eliding, so
+  // below a usable width drop the fragment and keep the location.
+  if (room < 12) return [`  ${pc.dim("↳")} ${pc.cyan(where)}`];
   const code = first.text.length > room ? first.text.slice(0, room - 1) + "…" : first.text;
   return [`  ${pc.dim("↳")} ${pc.cyan(where)}  ${pc.dim(code)}`];
 }
@@ -95,11 +112,17 @@ export async function runGame(
       let question = staircase.next();
 
       // The pool can run dry mid-run while a later batch is still generating.
-      // Hold the clock rather than ending the game early.
-      while (!question && opts.moreComing?.() && Date.now() < deadline) {
-        draw(["", "", `  ${pc.dim("loading more questions…")}`]);
-        await new Promise((r) => setTimeout(r, 300));
-        question = staircase.next();
+      // Hold the clock rather than ending the game early, but only briefly.
+      //
+      // `pending` was only ever non-zero under --deep before; it is non-zero on
+      // the default path now, so an exhausted pool used to end the run and now
+      // stalls. Unbounded, a thin diff seeded with eight questions spends the
+      // rest of a 180-second clock on a spinner. The wait is also the one place
+      // in the run with no keypress listener attached while raw mode is on, so
+      // it has to listen for ctrl-c itself or the player cannot leave.
+      if (!question && opts.moreComing?.()) {
+        question = await waitForMore(staircase, opts, deadline);
+        if (question === ABORTED) break;
       }
       if (!question) break;
 
@@ -171,6 +194,52 @@ export async function runGame(
   };
 }
 
+/** Distinct from null, which just means "no question": the player quit. */
+const ABORTED = Symbol("aborted") as unknown as Question;
+
+/** How long an empty pool may hold the clock waiting for the next AI batch. */
+const MAX_STALL_MS = 5000;
+
+/**
+ * Wait for generation to land something, briefly, and let ctrl-c out.
+ *
+ * Returns the next question, null when the wait ran out, or ABORTED when the
+ * player pressed ctrl-c. The listener is the point: without one, raw mode
+ * swallows ctrl-c and the only way out of the stall is closing the terminal.
+ */
+function waitForMore(
+  staircase: Staircase,
+  opts: GameOptions,
+  deadline: number,
+): Promise<Question | null> {
+  return new Promise((resolve) => {
+    const until = Math.min(Date.now() + MAX_STALL_MS, deadline);
+    let done = false;
+
+    const finish = (value: Question | null) => {
+      if (done) return;
+      done = true;
+      clearInterval(timer);
+      process.stdin.off("keypress", onKey);
+      resolve(value);
+    };
+
+    const onKey = (_s: string, key: { name?: string; ctrl?: boolean }) => {
+      if (key?.ctrl && key.name === "c") finish(ABORTED);
+    };
+
+    const timer = setInterval(() => {
+      const next = staircase.next();
+      if (next) return finish(next);
+      if (Date.now() >= until || !opts.moreComing?.()) return finish(null);
+      draw(["", "", `  ${pc.dim("loading more questions…")}`]);
+    }, 300);
+
+    process.stdin.on("keypress", onKey);
+    draw(["", "", `  ${pc.dim("loading more questions…")}`]);
+  });
+}
+
 interface AskContext {
   deadline: number;
   combo: number;
@@ -223,9 +292,15 @@ function askOne(
 
       const body = wrap(question.prompt);
 
-      const options = question.options.flatMap((o) => [
-        `    ${pc.bold(pc.cyan(o.key))}   ${o.text}`,
-      ]);
+      // Continuation lines hang under the text rather than under the letter, so
+      // the column of keys stays scannable when an option needs two rows.
+      const options = question.options.flatMap((o) => {
+        const [head, ...tail] = wrap(o.text, screenWidth() - 8, "");
+        return [
+          `    ${pc.bold(pc.cyan(o.key))}   ${head ?? ""}`,
+          ...tail.map((l) => `        ${l}`),
+        ];
+      });
 
       draw([
         ...header,

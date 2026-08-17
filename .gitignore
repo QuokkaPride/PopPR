@@ -4,3 +4,11 @@ scratch/
 *.log
 demo/*.json
 web/vendor/
+
+# Never commit a registry token. Publishing uses trusted publishing (OIDC) and
+# needs no secret at all, so an .npmrc here is either a mistake or a token about
+# to be pushed to a public repo.
+.npmrc
+.env
+.env.*
+

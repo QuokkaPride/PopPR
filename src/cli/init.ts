@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import pc from "picocolors";
+import pc from "./colors.js";
 import { ACTION_REF, STATUS_CONTEXT } from "../core/certify.js";
 
 const WORKFLOW_PATH = ".github/workflows/poppr.yml";
@@ -78,7 +78,12 @@ export async function runInit(opts: { certify?: boolean; force?: boolean }): Pro
   const wanted = workflow(!!opts.certify);
   const existing = await readFile(path, "utf8").catch(() => null);
 
-  if (existing === wanted) {
+  // Compare content, not bytes. A Windows checkout with core.autocrlf=true holds
+  // this exact file with CRLF endings, and a byte-exact test called that
+  // "differs from what I would write": `poppr init` told the maintainer their
+  // own untouched file was modified, and exited 1. .gitattributes stops new
+  // checkouts drifting; this keeps the ones that already have.
+  if (existing !== null && existing.replace(/\r\n/g, "\n") === wanted.replace(/\r\n/g, "\n")) {
     console.log("");
     console.log(`  ${pc.dim(WORKFLOW_PATH)} is already set up. Nothing to do.`);
     console.log("");

@@ -3,9 +3,15 @@ import { generateQuizStreaming } from "../dist/core/quiz.js";
 import { auditDistractors } from "../dist/core/quiz.js";
 import { detectProvider } from "../dist/core/providers/index.js";
 import { readDiff } from "../dist/core/diff.js";
+import { fileURLToPath } from "node:url";
+import { dirname } from "node:path";
+
+// Was hardcoded to one machine's home directory, so the harness CONTRIBUTING
+// points at could only ever run for its author. Resolve from this file instead.
+const REPO = dirname(dirname(fileURLToPath(import.meta.url)));
 
 const t0 = Date.now();
-const ctx = await readDiff({ cwd: "/Users/quokka/PopPR", base: process.argv[2] || "HEAD~1" });
+const ctx = await readDiff({ cwd: REPO, base: process.argv[2] || "HEAD~1" });
 console.log(`diff: ${ctx.label}, ${ctx.files.length} files, ${ctx.files.reduce((s,f)=>s+f.additions,0)} adds`);
 
 const { provider, note } = await detectProvider();

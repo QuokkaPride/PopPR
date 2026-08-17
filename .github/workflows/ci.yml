@@ -7,9 +7,16 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # Every OS a contributor plausibly develops on. Windows is here because the
+    # project was built and tested only on macOS, and the things that broke were
+    # exactly the things no amount of reading catches: npm installs its global
+    # CLIs as .cmd shims that Node refuses to exec, and cmd.exe never expands the
+    # glob `npm test` used to depend on. Both were invisible until a job ran.
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
         node: [18, 20, 22]
     steps:
       - uses: actions/checkout@v4

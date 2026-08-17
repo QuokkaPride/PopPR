@@ -3,7 +3,20 @@ import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import type { RunResult } from "./types.js";
 
-const HISTORY_PATH = join(homedir(), ".poppr", "history.json");
+/**
+ * Where the streak lives, resolved per call rather than frozen at import.
+ *
+ * `POPPR_HOME` exists for two reasons. Tests need somewhere to write that is not
+ * the developer's own history, and a module-level constant made that impossible:
+ * the only way to exercise the save path was to overwrite the real file, which
+ * is exactly what happened while writing these tests. It also gives WSL and
+ * native Windows a way to share one streak, which they otherwise cannot, since
+ * each sees a different home directory on the same machine.
+ */
+function historyPath(): string {
+  const dir = process.env.POPPR_HOME || join(homedir(), ".poppr");
+  return join(dir, "history.json");
+}
 
 interface ConceptStat {
   seen: number;
@@ -26,13 +39,15 @@ export interface History {
   version: 1;
   runs: RunRecord[];
   concepts: Record<string, ConceptStat>;
+  /** False when the last recordRun could not write to disk. Not persisted. */
+  saved?: boolean;
 }
 
 const EMPTY: History = { version: 1, runs: [], concepts: {} };
 
 export async function loadHistory(): Promise<History> {
   try {
-    const raw = await readFile(HISTORY_PATH, "utf8");
+    const raw = await readFile(historyPath(), "utf8");
     const parsed = JSON.parse(raw) as History;
     return parsed?.version === 1 ? parsed : EMPTY;
   } catch {
@@ -40,13 +55,39 @@ export async function loadHistory(): Promise<History> {
   }
 }
 
-export async function saveHistory(h: History): Promise<void> {
-  await mkdir(dirname(HISTORY_PATH), { recursive: true });
-  await writeFile(HISTORY_PATH, JSON.stringify(h, null, 2), "utf8");
+/**
+ * Persist, or give up quietly. Returns false when the write failed.
+ *
+ * Never throws, because the caller is between the last answer and the review
+ * screen. A read-only home directory, a roaming Windows profile or a locked
+ * file used to take the whole run down with it: the player answered ten
+ * questions and got a stack trace instead of their score. Losing a streak day
+ * is a far smaller harm than losing the run.
+ */
+export async function saveHistory(h: History): Promise<boolean> {
+  try {
+    await mkdir(dirname(historyPath()), { recursive: true });
+    await writeFile(historyPath(), JSON.stringify(h, null, 2), "utf8");
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-function dayKey(iso: string): string {
-  return iso.slice(0, 10);
+const pad = (n: number) => String(n).padStart(2, "0");
+
+/**
+ * The local calendar day an instant falls on.
+ *
+ * Local components rather than toISOString(): a run at 9am in UTC+10 is still
+ * *yesterday* in UTC, so keying off the ISO string rolled the streak over at an
+ * hour that had nothing to do with the player's own midnight. Far enough east
+ * or west, two runs on the same day counted as one and a day of play could
+ * vanish from the streak entirely.
+ */
+function dayKey(when: string | Date): string {
+  const d = typeof when === "string" ? new Date(when) : when;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 /** Consecutive days with at least one run, counting back from today. */
@@ -54,11 +95,11 @@ export function currentStreak(h: History, today = new Date()): number {
   const days = new Set(h.runs.map((r) => dayKey(r.date)));
   let streak = 0;
   const cursor = new Date(today);
-  // Today not yet counted is fine — a streak survives until the day ends.
-  if (!days.has(dayKey(cursor.toISOString()))) {
+  // Today not yet counted is fine: a streak survives until the day ends.
+  if (!days.has(dayKey(cursor))) {
     cursor.setDate(cursor.getDate() - 1);
   }
-  while (days.has(dayKey(cursor.toISOString()))) {
+  while (days.has(dayKey(cursor))) {
     streak++;
     cursor.setDate(cursor.getDate() - 1);
   }
@@ -145,6 +186,8 @@ export async function recordRun(result: RunResult): Promise<History> {
     concepts,
   });
 
-  await saveHistory(h);
+  // The caller renders the review screen off this, and a run nobody could
+  // persist is worth saying out loud once rather than silently discarding.
+  h.saved = await saveHistory(h);
   return h;
 }

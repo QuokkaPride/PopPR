@@ -32,7 +32,7 @@ So PopPR reads the diff, works out which concepts the added lines exercise, and 
 
 The design decisions I would most like feedback on, because they are the ones I went back and forth on:
 
-It reports by default and gates only if you opt in. Turning on certify makes the contributor answer every question correctly before a poppr/certified check goes green, and you have to add that check to branch protection yourself for it to block anything.
+It reports by default and gates only if you opt in. Turning on certify makes the contributor answer every question correctly before a poppr/quiz-passed check goes green, and you have to add that check to branch protection yourself for it to block anything.
 
 Nobody can fail it. Wrong answers come back untimed until they are right.
 
