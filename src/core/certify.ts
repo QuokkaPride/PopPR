@@ -235,36 +235,38 @@ export function detectComment(
   // run with a backend adds questions written about this specific code. A table
   // promising a set nobody is guaranteed to see was precision about the wrong
   // thing, and it was the longest part of the comment.
+  // Concepts are counted, never listed. The list was what the regexes matched,
+  // which is not the set the player is asked, and it was the longest thing here.
   const n = data.concepts.length;
   out.push(
-    `**PopPR** · ${data.questions} question${data.questions === 1 ? "" : "s"} on this diff, across ${n} concept${n === 1 ? "" : "s"}.`,
+    `**PopPR** · ${data.questions} question${data.questions === 1 ? "" : "s"} on this diff, from ${n} concept${n === 1 ? "" : "s"} detected in your changes.`,
   );
 
-  const link = quizUrl(opts);
-
-  if (opts.certify) {
-    out.push(
-      "",
-      `**[Take the quiz](${link})** · this repo asks contributors to certify.`,
-      "",
-      `Answer under the clock, then keep going untimed until every question is right. You cannot fail it and the number of tries is never published. Post the comment it gives you at the end and the \`${STATUS_CONTEXT}\` check turns green.`,
-    );
-  } else {
-    out.push(
-      "",
-      `**[Take the quiz](${link})** · three minutes in your browser, nothing to install.`,
-    );
-  }
-
+  // The terminal leads, because it is the only one that can write questions
+  // about THIS code. The browser needs nothing installed and is the better
+  // answer for someone who just wants to play, so it stays one click away
+  // rather than gone.
   out.push(
-    "",
-    "<details><summary>Want questions written about this specific code?</summary>",
     "",
     "```bash",
     `npx ${pkg} ${opts.number}${opts.certify ? " --certify" : ""}`,
     "```",
     "",
-    "The browser version asks from the question bank, which needs nothing installed. Run it in your terminal and, if you have Claude Code, Cursor or an AI API key, it also has one write questions about this diff. The terminal is also the only option on private repositories, where the browser cannot read the diff.",
+    "Runs the question bank straight away. If you have Claude Code, Cursor or an AI API key, it also has one write questions about your exact diff and mixes them in.",
+  );
+
+  if (opts.certify) {
+    out.push(
+      "",
+      `This repo asks contributors to certify. Answer under the clock, then keep going untimed until every question is right. You cannot fail it and the number of tries is never published. Post the comment it gives you at the end and the \`${STATUS_CONTEXT}\` check turns green.`,
+    );
+  }
+
+  out.push(
+    "",
+    `<details><summary>No terminal, or happy with bank questions? Play in your browser.</summary>`,
+    "",
+    `**[Take the quiz](${quizUrl(opts)})** · nothing to install, no account. Asks from the question bank only, so no AI-written questions. Public repositories only: the browser cannot read a private diff.`,
     "</details>",
   );
 

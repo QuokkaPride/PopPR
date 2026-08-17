@@ -52,7 +52,7 @@ program
     "--certify",
     "answer every question correctly, untimed after the clock, then post the completion comment",
   )
-  .option("--questions <n>", "how many questions a --certify run has to get right", "10")
+  .option("--questions <n>", "how many questions a --certify run has to get right", "5")
   .option("--provider <name>", "claude-code | cursor-agent | anthropic | openai | openrouter | ollama")
   .option("--stats", "show your concept mastery over time and exit")
   .option(
@@ -320,7 +320,7 @@ async function main(prArg: string | undefined, opts: Record<string, any>) {
         // across concepts so no single regex hit can decide what someone has to
         // master before merging. See certifySet.
         certifyPool = certifySet(detected, {
-          limit: Number(opts.questions) || 10,
+          limit: Number(opts.questions) || 5,
           topUp: { codeFiles: codeFiles(ctx) },
         });
         if (certifyPool.length === 0) {

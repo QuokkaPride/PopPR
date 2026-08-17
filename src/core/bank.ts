@@ -135,7 +135,7 @@ export function certifySet(
   // Clamped to the shared ceiling: the PR comment quotes this number, so a
   // maintainer configuring 40 must not get a comment promising 40 and a gate
   // that runs 25.
-  const limit = Math.min(opts.limit ?? 10, MAX_CERTIFY_QUESTIONS);
+  const limit = Math.min(opts.limit ?? 5, MAX_CERTIFY_QUESTIONS);
 
   // Keyed by slug, which also dedupes. `detectConcepts` cannot repeat a concept
   // but `classifyConcepts` can, and a duplicate group would make someone answer

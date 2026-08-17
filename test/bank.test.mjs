@@ -48,12 +48,12 @@ test("certifySet respects limit", () => {
   }
 });
 
-test("certifySet defaults to ten questions and stops at what the bank actually holds", () => {
+test("certifySet defaults to five questions and stops at what the bank actually holds", () => {
   const plenty = conceptsWithAtLeast(2, 8);
-  assert.equal(certifySet(plenty).length, 10, "the documented default is ten");
+  assert.equal(certifySet(plenty).length, 5, "the documented default is five");
 
-  // Two concepts at two each is four questions, and the default limit of ten
-  // must not invent the other six.
+  // Two concepts at two each is four questions, and the default limit must not
+  // invent the fifth.
   const thin = conceptsWithAtLeast(2, 2);
   assert.equal(certifySet(thin).length, 4);
 });

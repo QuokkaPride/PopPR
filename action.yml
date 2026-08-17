@@ -48,10 +48,10 @@ inputs:
     default: "false"
   questions:
     description: >-
-      How many questions the certify set holds. Ten runs about three minutes
-      and is spread across concepts rather than piled onto one.
+      How many questions the certify set holds. Five is a few minutes and is
+      spread across concepts rather than piled onto one.
     required: false
-    default: "10"
+    default: "5"
   time:
     description: >-
       Seconds on the clock for the timed first pass. Missing questions under

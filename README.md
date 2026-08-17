@@ -100,7 +100,7 @@ poppr --stats          # what you are getting better at
 - uses: QuokkaPride/PopPR@v1
   with:
     certify: true      # require a passing quiz, report poppr/quiz-passed. default false
-    questions: 10      # how many questions that quiz holds. default 10
+    questions: 5       # how many questions that quiz holds. default 5
     time: 180          # seconds on the timed first pass. default 180
 ```
 
