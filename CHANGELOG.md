@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.1
+
+README only. "What you get" said in five paragraphs what it says here in two:
+the bank needs no key, and an available backend adds questions about your
+specific code. Everything cut was either a restatement of the sentence above it
+or reassurance nobody asked for.
+
+
 ## 0.5.0
 
 **The AI questions now actually reach you.** They never had. Measured on the

@@ -32,9 +32,9 @@ No account, no API key, no signup. Starts in about 50 milliseconds.
 
 **There is no PopPR server.** Nothing to send your code to, because there is nowhere to send it.
 
-Every run starts as a regex pass over your own diff plus a question bank bundled in the package. It works on a plane. Your history sits in `~/.poppr/history.json`.
+The bank half is a regex pass over your own diff against questions bundled in the package. It works on a plane, and your history sits in `~/.poppr/history.json`.
 
-When PopPR writes questions about your code it uses the AI you already pay for: Claude Code, Cursor, your own API key, or a local Ollama model. Your account, your choice, no middleman. With no backend installed nothing is sent anywhere, and `--quick` skips the attempt entirely.
+The AI half uses the account you already pay for: Claude Code, Cursor, your own API key, or a local Ollama model. No middleman. `--quick` skips it entirely.
 
 The GitHub Action runs inside your CI and reads the diff through the GitHub API. It never checks out or executes PR code, which is what makes it safe on forks and what makes it work on repos that are not Node at all.
 
@@ -76,11 +76,9 @@ The check has two states. Green means the author worked through every question, 
 
 ## What you get
 
-**PopPR ships with a bank of 328 questions.** It analyses your diff, finds the patterns in it, and asks you the bank questions that match what you changed. No API key required, nothing to install, nothing to configure.
+**A bank of 328 questions**, matched to the patterns in your diff. No API key, nothing to install.
 
-**If you have Claude Code, Cursor, or an AI API key, PopPR also has it write questions about your specific code** for an even more customised run: who calls the function you changed, what breaks if this line goes, why this approach over the obvious one. Those join the run as they arrive and are marked `✦ ai` so you can tell them apart.
-
-You do not set anything up. If a backend is there, it gets used.
+**Plus AI-written questions about your specific code**, when Claude Code, Cursor or an AI API key is available in your terminal. They are marked `✦ ai` and join the run as they arrive.
 
 ## Commands
 
